@@ -87,15 +87,18 @@ EOF
     printf '%s' "$drvPath" > "$out"
   '';
 in
+let
+  plannedDrvPath = builtins.readFile plannerDrv;
+in
 plannerDrv.overrideAttrs (old: {
   passthru =
     (old.passthru or { })
     // {
       ref = plannerDrv;
-      targetDrvPath = builtins.readFile plannerDrv;
+      targetDrvPath = plannedDrvPath;
       target =
         builtins.outputOf
-          (builtins.unsafeDiscardOutputDependency (builtins.storePath (builtins.readFile plannerDrv)))
+          (builtins.unsafeDiscardOutputDependency (builtins.storePath plannedDrvPath))
           "out";
     };
 })
