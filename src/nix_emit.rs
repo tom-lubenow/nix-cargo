@@ -13,6 +13,7 @@ use crate::source_scope::workspace_source_prefixes_by_package;
 
 pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
     let mut out = String::new();
+    let ordered_packages = topologically_sorted_packages(plan);
     let commands_by_package = plan_commands_by_package(plan);
     let source_prefixes_by_package = workspace_source_prefixes_by_package(plan);
     let cargo_home_plan = build_cargo_home_materialization_plan(plan);
@@ -147,7 +148,7 @@ pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
     out.push_str("  '';\n");
 
     out.push_str("  cratePlan = [\n");
-    for package in &plan.packages {
+    for package in ordered_packages {
         let package_commands = commands_by_package
             .get(package.key.as_str())
             .cloned()
@@ -677,6 +678,47 @@ fn plan_commands_by_package(plan: &Plan) -> HashMap<String, Vec<CommandSpec>> {
             (package.key.clone(), commands)
         })
         .collect()
+}
+
+fn topologically_sorted_packages(plan: &Plan) -> Vec<&PlanPackage> {
+    fn visit<'a>(
+        index: usize,
+        plan: &'a Plan,
+        key_to_index: &HashMap<&'a str, usize>,
+        marks: &mut [u8],
+        out: &mut Vec<&'a PlanPackage>,
+    ) {
+        if marks[index] == 2 {
+            return;
+        }
+        if marks[index] == 1 {
+            return;
+        }
+
+        marks[index] = 1;
+        for dependency in &plan.packages[index].dependencies {
+            if let Some(&dep_index) = key_to_index.get(dependency.as_str()) {
+                visit(dep_index, plan, key_to_index, marks, out);
+            }
+        }
+        marks[index] = 2;
+        out.push(&plan.packages[index]);
+    }
+
+    let key_to_index = plan
+        .packages
+        .iter()
+        .enumerate()
+        .map(|(index, package)| (package.key.as_str(), index))
+        .collect::<HashMap<_, _>>();
+    let mut marks = vec![0u8; plan.packages.len()];
+    let mut out = Vec::with_capacity(plan.packages.len());
+
+    for index in 0..plan.packages.len() {
+        visit(index, plan, &key_to_index, &mut marks, &mut out);
+    }
+
+    out
 }
 
 fn render_command_script(commands: &[CommandSpec]) -> String {
