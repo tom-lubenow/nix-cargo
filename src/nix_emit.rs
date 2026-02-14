@@ -141,6 +141,9 @@ pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
     out.push_str("    if cargoHome != null then cargoHome\n");
     out.push_str("    else if unsupportedCargoHomePackages == [ ] then materializedCargoHome\n");
     out.push_str("    else throw \"nix-cargo: cannot auto-materialize cargoHome for packages: ${builtins.concatStringsSep \", \" unsupportedCargoHomePackages}. Pass cargoHome override.\";\n");
+    out.push_str("  emptySrc = pkgs.runCommand \"nix-cargo-empty-src\" {} ''\n");
+    out.push_str("    mkdir -p \"$out\"\n");
+    out.push_str("  '';\n");
 
     out.push_str("  cratePlan = [\n");
     for package in &plan.packages {
@@ -181,10 +184,7 @@ pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
     );
     out.push_str("      sourcePrefixes = packageDef.workspaceSourcePrefixes;\n");
     out.push_str("      packageSrc = if sourcePrefixes == [ ] then\n");
-    out.push_str("        builtins.path {\n");
-    out.push_str("          path = src;\n");
-    out.push_str("          name = \"nix-cargo-src-${packageDef.name}-${packageDef.version}\";\n");
-    out.push_str("        }\n");
+    out.push_str("        emptySrc\n");
     out.push_str("      else builtins.path {\n");
     out.push_str("        path = src;\n");
     out.push_str("        name = \"nix-cargo-src-${packageDef.name}-${packageDef.version}\";\n");
@@ -636,50 +636,15 @@ fn plan_commands_by_package(plan: &Plan) -> HashMap<String, Vec<CommandSpec>> {
 }
 
 fn workspace_source_prefixes_by_package(plan: &Plan) -> HashMap<String, Vec<String>> {
-    let dependency_index: HashMap<&str, &Vec<String>> = plan
-        .packages
+    plan.packages
         .iter()
-        .map(|package| (package.key.as_str(), &package.dependencies))
-        .collect();
-    let local_prefix_by_package: HashMap<&str, String> = plan
-        .packages
-        .iter()
-        .filter_map(|package| {
-            local_workspace_source_prefix(&plan.workspace_root, &package.source)
-                .map(|prefix| (package.key.as_str(), prefix))
+        .map(|package| {
+            let prefixes = local_workspace_source_prefix(&plan.workspace_root, &package.source)
+                .map(|prefix| vec![prefix])
+                .unwrap_or_default();
+            (package.key.clone(), prefixes)
         })
-        .collect();
-
-    let mut prefixes_by_package: HashMap<String, Vec<String>> =
-        HashMap::with_capacity(plan.packages.len());
-
-    for package in &plan.packages {
-        let mut relevant_packages = std::collections::BTreeSet::new();
-        let mut stack = vec![package.key.as_str()];
-
-        while let Some(key) = stack.pop() {
-            if !relevant_packages.insert(key) {
-                continue;
-            }
-
-            if let Some(dependencies) = dependency_index.get(key) {
-                for dependency in (*dependencies).iter() {
-                    stack.push(dependency.as_str());
-                }
-            }
-        }
-
-        let mut source_prefixes = std::collections::BTreeSet::new();
-        for relevant_key in relevant_packages {
-            if let Some(prefix) = local_prefix_by_package.get(relevant_key) {
-                source_prefixes.insert(prefix.clone());
-            }
-        }
-
-        prefixes_by_package.insert(package.key.clone(), source_prefixes.into_iter().collect());
-    }
-
-    prefixes_by_package
+        .collect()
 }
 
 fn local_workspace_source_prefix(workspace_root: &str, source: &str) -> Option<String> {
