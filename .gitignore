@@ -1,6 +1,8 @@
 /target/
+/examples/**/target/
 /result
 /result-*
+/examples/**/nix-cargo-plan.nix
 
 *.log
 *.tmp
