@@ -219,7 +219,7 @@ pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
     out.push_str("        version = packageDef.version;\n");
     out.push_str("        buildMode = buildMode;\n");
     out.push_str("        src = packageSrc;\n");
-    out.push_str("        nativeBuildInputs = [ pkgs.rustc pkgs.cargo pkgs.pkg-config ];\n");
+    out.push_str("        nativeBuildInputs = [ pkgs.rustc pkgs.cargo pkgs.pkg-config pkgs.stdenv.cc ];\n");
     out.push_str("        buildInputs = dependencyDrvs;\n");
     out.push_str("        dontFixup = true;\n");
     out.push_str("        doCheck = false;\n");
