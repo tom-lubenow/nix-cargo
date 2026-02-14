@@ -1,6 +1,7 @@
 mod cargo_plan;
 mod model;
 mod nix_emit;
+mod source_scope;
 mod workspace;
 
 use std::path::PathBuf;
