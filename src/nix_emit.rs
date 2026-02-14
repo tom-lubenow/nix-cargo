@@ -621,41 +621,18 @@ fn hex_nibble(value: u8) -> Option<u8> {
 }
 
 fn plan_commands_by_package(plan: &Plan) -> HashMap<String, Vec<CommandSpec>> {
-    let mut commands_by_package: HashMap<String, Vec<CommandSpec>> =
-        HashMap::with_capacity(plan.packages.len());
-    let dependency_index: HashMap<&str, &Vec<String>> = plan
-        .packages
+    plan.packages
         .iter()
-        .map(|package| (package.key.as_str(), &package.dependencies))
-        .collect();
-
-    for package in &plan.packages {
-        let mut relevant_packages = std::collections::BTreeSet::new();
-        let mut stack = vec![package.key.as_str()];
-
-        while let Some(key) = stack.pop() {
-            if !relevant_packages.insert(key) {
-                continue;
-            }
-
-            if let Some(dependencies) = dependency_index.get(key) {
-                for dependency in (*dependencies).iter() {
-                    stack.push(dependency.as_str());
-                }
-            }
-        }
-
-        let commands = plan
-            .units
-            .iter()
-            .filter(|unit| relevant_packages.contains(unit.package_key.as_str()))
-            .map(|unit| unit.command.clone())
-            .collect::<Vec<_>>();
-
-        commands_by_package.insert(package.key.clone(), commands);
-    }
-
-    commands_by_package
+        .map(|package| {
+            let commands = plan
+                .units
+                .iter()
+                .filter(|unit| unit.package_key == package.key)
+                .map(|unit| unit.command.clone())
+                .collect::<Vec<_>>();
+            (package.key.clone(), commands)
+        })
+        .collect()
 }
 
 fn workspace_source_prefixes_by_package(plan: &Plan) -> HashMap<String, Vec<String>> {
