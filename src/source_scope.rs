@@ -34,3 +34,35 @@ fn local_workspace_source_prefix(workspace_root: &str, source: &str) -> Option<S
         Some(rel.to_string())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::local_workspace_source_prefix;
+
+    #[test]
+    fn parses_plain_absolute_workspace_path() {
+        let workspace = "/repo/ws";
+        let source = "/repo/ws/crates/app";
+        assert_eq!(
+            local_workspace_source_prefix(workspace, source).as_deref(),
+            Some("crates/app")
+        );
+    }
+
+    #[test]
+    fn parses_path_file_source_url() {
+        let workspace = "/repo/ws";
+        let source = "path+file:///repo/ws/crates/app?locked=true";
+        assert_eq!(
+            local_workspace_source_prefix(workspace, source).as_deref(),
+            Some("crates/app")
+        );
+    }
+
+    #[test]
+    fn returns_none_for_non_local_source() {
+        let workspace = "/repo/ws";
+        let source = "registry+https://github.com/rust-lang/crates.io-index";
+        assert_eq!(local_workspace_source_prefix(workspace, source), None);
+    }
+}
