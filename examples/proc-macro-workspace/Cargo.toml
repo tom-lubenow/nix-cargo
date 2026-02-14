@@ -1,0 +1,8 @@
+[workspace]
+members = [
+  "crates/app",
+  "crates/genmsg",
+  "crates/hello-macro",
+]
+resolver = "2"
+
