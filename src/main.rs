@@ -1,4 +1,5 @@
 mod cargo_plan;
+mod cargo_home;
 mod model;
 mod nix_emit;
 mod source_scope;
