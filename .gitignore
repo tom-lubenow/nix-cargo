@@ -1,0 +1,12 @@
+/target/
+/result
+/result-*
+
+*.log
+*.tmp
+
+.direnv/
+.envrc
+
+.DS_Store
+*.swp
