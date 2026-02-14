@@ -13,13 +13,13 @@ internal compile pipeline.
 - `emit` emits a Nix expression with one derivation per resolved package (workspace + external),
   replaying each package's own captured Cargo-executor command sequence with deterministic path
   marker substitution.
-  It also emits dynamic-derivation wrapper refs (`builtins.outputOf`) per package.
+  It also emits dynamic package refs (`builtins.outputOf`) per package.
 - `emit` auto-materializes `cargoHome` from `Cargo.lock` for crates.io registry dependencies
   (checksum-verified fixed-output fetches) when `cargoHome = null`.
 - `emit` auto-materializes git dependencies when `cargoHome = null` using `gitSourceHashes`
   (deterministic `pkgs.fetchgit`), with opt-in `allowImpureGitFetch = true` fallback.
-- `driver.nix` runs planning as a build action (`.drv` text output) and exposes
-  `passthru.target = builtins.outputOf plannerDrv.outPath "out"` for RFC-92 dynamic usage.
+- `driver.nix` runs planning as a build action and exposes a dynamic `passthru.target` resolved
+  from the planned package/workspace `.drv` path.
 - `flake.nix` exports `legacyPackages.<system>.mkDriver` to construct dynamic planner drivers for
   arbitrary Rust workspaces.
 
@@ -53,6 +53,11 @@ nix-instantiate --eval ./nix-cargo-plan.nix
 #    ./examples/integration-check.sh
 #    # optionally:
 #    NIX_CARGO_BIN=./target/debug/nix-cargo ./examples/integration-check.sh
+#
+# 7) Proc-macro + build.rs fixture check
+#    ./examples/proc-macro-check.sh
+#    # optionally:
+#    NIX_CARGO_BIN=./target/debug/nix-cargo ./examples/proc-macro-check.sh
 ```
 
 ## Notes
@@ -80,3 +85,8 @@ nix-instantiate --eval ./nix-cargo-plan.nix
 - Current Nix emitter remains MVP quality: it seeds `CARGO_TARGET_DIR` from dependency outputs,
   then replays package-scoped captured calls as structured argv/env invocations.
 - Included example workspace: `examples/incremental-workspace`.
+- Included complex fixture workspace (`proc-macro` + `build.rs`):
+  `examples/proc-macro-workspace`.
+- Captured package derivations are emitted in explicit topological dependency order.
+- Dependency output hydration copies `deps`, `build`, `.fingerprint`, and target-triple variants to
+  support strict per-package replay for build-script and proc-macro heavy graphs.
