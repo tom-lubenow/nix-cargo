@@ -84,7 +84,7 @@ EOF
 
     export PLAN_NIX="$planNix"
     drvPath="$(nix eval --raw --file "$resolveNix")"
-    cp "$drvPath" "$out"
+    printf '%s' "$drvPath" > "$out"
   '';
 in
 plannerDrv.overrideAttrs (old: {
@@ -92,6 +92,10 @@ plannerDrv.overrideAttrs (old: {
     (old.passthru or { })
     // {
       ref = plannerDrv;
-      target = plannerDrv.outPath;
+      targetDrvPath = builtins.readFile plannerDrv;
+      target =
+        builtins.outputOf
+          (builtins.unsafeDiscardOutputDependency (builtins.storePath (builtins.readFile plannerDrv)))
+          "out";
     };
 })
