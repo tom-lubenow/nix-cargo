@@ -254,8 +254,14 @@ impl Executor for RecordingExecutor {
                 }
                 on_stdout_line(line)
             };
+            let mut on_stderr = |line: &str| -> CargoResult<()> {
+                if let Some(artifact) = parse_link_artifact(line) {
+                    link_artifact = Some(artifact);
+                }
+                on_stderr_line(line)
+            };
             self.delegate
-                .exec(cmd, id, target, mode, &mut on_stdout, on_stderr_line)
+                .exec(cmd, id, target, mode, &mut on_stdout, &mut on_stderr)
         } else {
             Ok(())
         };
