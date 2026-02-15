@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::fmt::Write;
 
 use crate::cargo_home::{build_cargo_home_materialization_plan, CargoHomeMaterializationPlan};
@@ -150,6 +150,8 @@ pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
             .get(package.key.as_str())
             .cloned()
             .unwrap_or_default();
+        let target_triples = package_target_triples(&package_commands);
+        let needs_host_artifacts = package_needs_host_artifacts(&package_commands);
         let package_source_prefixes = source_prefixes_by_package
             .get(package.key.as_str())
             .cloned()
@@ -157,7 +159,7 @@ pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
         let command_script = render_command_script(&package_commands);
         let _ = writeln!(
             out,
-            "    {{ key = \"{}\"; name = \"{}\"; version = \"{}\"; source = \"{}\"; lockChecksum = {}; cargoHomeRelManifestPath = {}; workspaceMember = {}; dependencies = {}; workspaceSourcePrefixes = {}; commandScript = \"{}\"; }}",
+            "    {{ key = \"{}\"; name = \"{}\"; version = \"{}\"; source = \"{}\"; lockChecksum = {}; cargoHomeRelManifestPath = {}; workspaceMember = {}; dependencies = {}; workspaceSourcePrefixes = {}; targetTriples = {}; needsHostArtifacts = {}; commandScript = \"{}\"; }}",
             nix_escape(&package.key),
             nix_escape(&package.name),
             nix_escape(&package.version),
@@ -167,6 +169,8 @@ pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
             nix_bool(package.workspace_member),
             nix_string_list(&package.dependencies),
             nix_string_list(&package_source_prefixes),
+            nix_string_list(&target_triples),
+            nix_bool(needs_host_artifacts),
             nix_escape(&command_script),
         );
     }
@@ -241,6 +245,13 @@ pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
     out.push_str("          mkdir -p \"$CARGO_TARGET_DIR/$buildMode/build\"\n");
     out.push_str("          mkdir -p \"$CARGO_TARGET_DIR/$buildMode/examples\"\n");
     out.push_str("          depPaths=( ${pkgs.lib.escapeShellArgs (map toString dependencyDrvs)} )\n");
+    out.push_str("          targetTriples=( ${pkgs.lib.escapeShellArgs packageDef.targetTriples} )\n");
+    out.push_str("          needsHostArtifacts=${if packageDef.needsHostArtifacts then \"1\" else \"0\"}\n");
+    out.push_str("          for targetTriple in \"''${targetTriples[@]}\"; do\n");
+    out.push_str("            mkdir -p \"$CARGO_TARGET_DIR/$targetTriple/$buildMode/deps\"\n");
+    out.push_str("            mkdir -p \"$CARGO_TARGET_DIR/$targetTriple/$buildMode/build\"\n");
+    out.push_str("            mkdir -p \"$CARGO_TARGET_DIR/$targetTriple/$buildMode/examples\"\n");
+    out.push_str("          done\n");
     out.push_str("          copy_tree_if_exists() {\n");
     out.push_str("            local srcDir=\"$1\"\n");
     out.push_str("            local dstDir=\"$2\"\n");
@@ -249,24 +260,22 @@ pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
     out.push_str("              cp -R -n \"$srcDir/.\" \"$dstDir/\" || true\n");
     out.push_str("            fi\n");
     out.push_str("          }\n");
-    out.push_str("          shopt -s dotglob nullglob\n");
     out.push_str("          for depPath in \"''${depPaths[@]}\"; do\n");
     out.push_str("            if [ -d \"$depPath\" ]; then\n");
-    out.push_str("              copy_tree_if_exists \"$depPath/deps\" \"$CARGO_TARGET_DIR/$buildMode/deps\"\n");
-    out.push_str("              copy_tree_if_exists \"$depPath/build\" \"$CARGO_TARGET_DIR/$buildMode/build\"\n");
-    out.push_str("              copy_tree_if_exists \"$depPath/examples\" \"$CARGO_TARGET_DIR/$buildMode/examples\"\n");
-    out.push_str("              copy_tree_if_exists \"$depPath/.fingerprint\" \"$CARGO_TARGET_DIR/$buildMode/.fingerprint\"\n");
-    out.push_str("              for entry in \"$depPath\"/*; do\n");
-    out.push_str("                if [ -d \"$entry\" ]; then\n");
-    out.push_str("                  baseName=\"$(basename \"$entry\")\"\n");
-    out.push_str("                  case \"$baseName\" in deps|build|examples|.fingerprint|incremental) continue ;; esac\n");
-    out.push_str("                  mkdir -p \"$CARGO_TARGET_DIR/$baseName\"\n");
-    out.push_str("                  cp -R -n \"$entry/.\" \"$CARGO_TARGET_DIR/$baseName/\" || true\n");
-    out.push_str("                fi\n");
+    out.push_str("              if [ \"$needsHostArtifacts\" -eq 1 ]; then\n");
+    out.push_str("                copy_tree_if_exists \"$depPath/deps\" \"$CARGO_TARGET_DIR/$buildMode/deps\"\n");
+    out.push_str("                copy_tree_if_exists \"$depPath/build\" \"$CARGO_TARGET_DIR/$buildMode/build\"\n");
+    out.push_str("                copy_tree_if_exists \"$depPath/examples\" \"$CARGO_TARGET_DIR/$buildMode/examples\"\n");
+    out.push_str("                copy_tree_if_exists \"$depPath/.fingerprint\" \"$CARGO_TARGET_DIR/$buildMode/.fingerprint\"\n");
+    out.push_str("              fi\n");
+    out.push_str("              for targetTriple in \"''${targetTriples[@]}\"; do\n");
+    out.push_str("                copy_tree_if_exists \"$depPath/$targetTriple/deps\" \"$CARGO_TARGET_DIR/$targetTriple/$buildMode/deps\"\n");
+    out.push_str("                copy_tree_if_exists \"$depPath/$targetTriple/build\" \"$CARGO_TARGET_DIR/$targetTriple/$buildMode/build\"\n");
+    out.push_str("                copy_tree_if_exists \"$depPath/$targetTriple/examples\" \"$CARGO_TARGET_DIR/$targetTriple/$buildMode/examples\"\n");
+    out.push_str("                copy_tree_if_exists \"$depPath/$targetTriple/.fingerprint\" \"$CARGO_TARGET_DIR/$targetTriple/$buildMode/.fingerprint\"\n");
     out.push_str("              done\n");
     out.push_str("            fi\n");
     out.push_str("          done\n");
-    out.push_str("          shopt -u dotglob nullglob\n");
     out.push_str("          rewrite_value() {\n");
     out.push_str("            local value=\"$1\"\n");
     out.push_str("            value=\"''${value//''${markerTarget}/$CARGO_TARGET_DIR}\"\n");
@@ -335,60 +344,43 @@ pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
     out.push_str("        installPhase = ''\n");
     out.push_str("          mkdir -p \"$out\"\n");
     out.push_str("          copied=0\n");
-    out.push_str("          if [ -d \"$CARGO_TARGET_DIR/$buildMode/deps\" ]; then\n");
-    out.push_str("            mkdir -p \"$out/deps\"\n");
-    out.push_str("            shopt -s nullglob\n");
-    out.push_str("            for artifact in \"$CARGO_TARGET_DIR/$buildMode/deps\"/*; do\n");
-    out.push_str("              case \"$artifact\" in\n");
-    out.push_str("                *.d) continue ;;\n");
-    out.push_str("              esac\n");
-    out.push_str("              cp -R \"$artifact\" \"$out/deps/\"\n");
-    out.push_str("            done\n");
-    out.push_str("            shopt -u nullglob\n");
-    out.push_str("            copied=1\n");
-    out.push_str("          fi\n");
-    out.push_str("          if [ -d \"$CARGO_TARGET_DIR/$buildMode/build\" ]; then\n");
-    out.push_str("            cp -R \"$CARGO_TARGET_DIR/$buildMode/build\" \"$out/\"\n");
-    out.push_str("            copied=1\n");
-    out.push_str("          fi\n");
-    out.push_str("          if [ -d \"$CARGO_TARGET_DIR/$buildMode/examples\" ]; then\n");
-    out.push_str("            cp -R \"$CARGO_TARGET_DIR/$buildMode/examples\" \"$out/\"\n");
-    out.push_str("            copied=1\n");
-    out.push_str("          fi\n");
-    out.push_str("          if [ -d \"$CARGO_TARGET_DIR/$buildMode/.fingerprint\" ]; then\n");
-    out.push_str("            cp -R \"$CARGO_TARGET_DIR/$buildMode/.fingerprint\" \"$out/\"\n");
-    out.push_str("            copied=1\n");
-    out.push_str("          fi\n");
-    out.push_str("          shopt -s nullglob\n");
-    out.push_str("          for targetDir in \"$CARGO_TARGET_DIR\"/*; do\n");
-    out.push_str("            if [ -d \"$targetDir/$buildMode\" ]; then\n");
-    out.push_str("              targetTriple=\"$(basename \"$targetDir\")\"\n");
-    out.push_str("              mkdir -p \"$out/$targetTriple\"\n");
-    out.push_str("              if [ -d \"$targetDir/$buildMode/deps\" ]; then\n");
-    out.push_str("                mkdir -p \"$out/$targetTriple/deps\"\n");
-    out.push_str("                for artifact in \"$targetDir/$buildMode/deps\"/*; do\n");
-    out.push_str("                  case \"$artifact\" in\n");
-    out.push_str("                    *.d) continue ;;\n");
-    out.push_str("                  esac\n");
-    out.push_str("                  cp -R \"$artifact\" \"$out/$targetTriple/deps/\"\n");
-    out.push_str("                done\n");
-    out.push_str("                copied=1\n");
-    out.push_str("              fi\n");
-    out.push_str("              if [ -d \"$targetDir/$buildMode/build\" ]; then\n");
-    out.push_str("                cp -R \"$targetDir/$buildMode/build\" \"$out/$targetTriple/\"\n");
-    out.push_str("                copied=1\n");
-    out.push_str("              fi\n");
-    out.push_str("              if [ -d \"$targetDir/$buildMode/examples\" ]; then\n");
-    out.push_str("                cp -R \"$targetDir/$buildMode/examples\" \"$out/$targetTriple/\"\n");
-    out.push_str("                copied=1\n");
-    out.push_str("              fi\n");
-    out.push_str("              if [ -d \"$targetDir/$buildMode/.fingerprint\" ]; then\n");
-    out.push_str("                cp -R \"$targetDir/$buildMode/.fingerprint\" \"$out/$targetTriple/\"\n");
-    out.push_str("                copied=1\n");
-    out.push_str("              fi\n");
+    out.push_str("          targetTriples=( ${pkgs.lib.escapeShellArgs packageDef.targetTriples} )\n");
+    out.push_str("          needsHostArtifacts=${if packageDef.needsHostArtifacts then \"1\" else \"0\"}\n");
+    out.push_str("          copy_install_layout() {\n");
+    out.push_str("            local srcRoot=\"$1\"\n");
+    out.push_str("            local dstRoot=\"$2\"\n");
+    out.push_str("            if [ -d \"$srcRoot/deps\" ]; then\n");
+    out.push_str("              mkdir -p \"$dstRoot/deps\"\n");
+    out.push_str("              shopt -s nullglob\n");
+    out.push_str("              for artifact in \"$srcRoot/deps\"/*; do\n");
+    out.push_str("                case \"$artifact\" in\n");
+    out.push_str("                  *.d) continue ;;\n");
+    out.push_str("                esac\n");
+    out.push_str("                cp -R \"$artifact\" \"$dstRoot/deps/\"\n");
+    out.push_str("              done\n");
+    out.push_str("              shopt -u nullglob\n");
+    out.push_str("              copied=1\n");
     out.push_str("            fi\n");
+    out.push_str("            if [ -d \"$srcRoot/build\" ]; then\n");
+    out.push_str("              cp -R \"$srcRoot/build\" \"$dstRoot/\"\n");
+    out.push_str("              copied=1\n");
+    out.push_str("            fi\n");
+    out.push_str("            if [ -d \"$srcRoot/examples\" ]; then\n");
+    out.push_str("              cp -R \"$srcRoot/examples\" \"$dstRoot/\"\n");
+    out.push_str("              copied=1\n");
+    out.push_str("            fi\n");
+    out.push_str("            if [ -d \"$srcRoot/.fingerprint\" ]; then\n");
+    out.push_str("              cp -R \"$srcRoot/.fingerprint\" \"$dstRoot/\"\n");
+    out.push_str("              copied=1\n");
+    out.push_str("            fi\n");
+    out.push_str("          }\n");
+    out.push_str("          if [ \"$needsHostArtifacts\" -eq 1 ]; then\n");
+    out.push_str("            copy_install_layout \"$CARGO_TARGET_DIR/$buildMode\" \"$out\"\n");
+    out.push_str("          fi\n");
+    out.push_str("          for targetTriple in \"''${targetTriples[@]}\"; do\n");
+    out.push_str("            mkdir -p \"$out/$targetTriple\"\n");
+    out.push_str("            copy_install_layout \"$CARGO_TARGET_DIR/$targetTriple/$buildMode\" \"$out/$targetTriple\"\n");
     out.push_str("          done\n");
-    out.push_str("          shopt -u nullglob\n");
     out.push_str("          if [ \"$copied\" -eq 0 ]; then\n");
     out.push_str("            touch \"$out/.nix-cargo-empty\"\n");
     out.push_str("          fi\n");
@@ -494,6 +486,42 @@ fn topologically_sorted_packages(plan: &Plan) -> Vec<&PlanPackage> {
     }
 
     out
+}
+
+fn package_target_triples(commands: &[CommandSpec]) -> Vec<String> {
+    commands
+        .iter()
+        .filter_map(command_target_triple)
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect()
+}
+
+fn package_needs_host_artifacts(commands: &[CommandSpec]) -> bool {
+    commands
+        .iter()
+        .any(|command| command_target_triple(command).is_none())
+}
+
+fn command_target_triple(command: &CommandSpec) -> Option<String> {
+    let mut args = command.args.iter();
+    while let Some(arg) = args.next() {
+        if let Some(value) = arg.strip_prefix("--target=") {
+            if !value.is_empty() {
+                return Some(value.to_string());
+            }
+            continue;
+        }
+
+        if arg == "--target" {
+            let next = args.next()?;
+            if !next.is_empty() {
+                return Some(next.to_string());
+            }
+            return None;
+        }
+    }
+    None
 }
 
 fn render_command_script(commands: &[CommandSpec]) -> String {

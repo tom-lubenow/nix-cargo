@@ -90,3 +90,5 @@ nix-instantiate --eval ./nix-cargo-plan.nix
 - Captured package derivations are emitted in explicit topological dependency order.
 - Dependency output hydration copies `deps`, `build`, `.fingerprint`, and target-triple variants to
   support strict per-package replay for build-script and proc-macro heavy graphs.
+- Host-vs-target replay is now explicit per package via captured command metadata
+  (`targetTriples`/`needsHostArtifacts`) instead of broad directory globbing.
