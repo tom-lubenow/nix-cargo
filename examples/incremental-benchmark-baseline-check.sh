@@ -64,8 +64,12 @@ if [ "${UPDATE}" -eq 1 ] && [ "${ENGINE}" != "both" ]; then
   exit 1
 fi
 
-export CARGO2NIX_SETUP_CMD="${CARGO2NIX_SETUP_CMD:-nix run github:cargo2nix/cargo2nix -- --stdout > Cargo.nix}"
-export CARGO2NIX_BUILD_CMD="${CARGO2NIX_BUILD_CMD:-nix build --no-link --impure --expr \"let c2n = builtins.getFlake \\\"github:cargo2nix/cargo2nix\\\"; pkgs = import c2n.inputs.nixpkgs { system = builtins.currentSystem; overlays = [ c2n.overlays.default ]; }; rustPkgs = pkgs.rustBuilder.makePackageSet { rustVersion = \\\"1.83.0\\\"; packageFun = import ./Cargo.nix; }; in rustPkgs.workspace.app {}\"}"
+if [ -z "${CARGO2NIX_SETUP_CMD:-}" ]; then
+  export CARGO2NIX_SETUP_CMD='nix run github:cargo2nix/cargo2nix -- --stdout > Cargo.nix'
+fi
+if [ -z "${CARGO2NIX_BUILD_CMD:-}" ]; then
+  export CARGO2NIX_BUILD_CMD='nix build --no-link --impure --expr "let c2n = builtins.getFlake \"github:cargo2nix/cargo2nix\"; pkgs = import c2n.inputs.nixpkgs { system = builtins.currentSystem; overlays = [ c2n.overlays.default ]; }; rustPkgs = pkgs.rustBuilder.makePackageSet { rustVersion = \"1.83.0\"; packageFun = import ./Cargo.nix; }; in rustPkgs.workspace.app {}"'
+fi
 
 normalize_engine_snapshot() {
   local engine="$1"

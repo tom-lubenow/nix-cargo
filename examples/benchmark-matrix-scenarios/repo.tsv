@@ -1,0 +1,5 @@
+small_core_edit	examples/incremental-workspace	app	crates/corelib/src/lib.rs
+large_leaf_a_edit	examples/incremental-workspace-large	app	crates/leaf_a/src/lib.rs
+large_mid_a_edit	examples/incremental-workspace-large	app	crates/mid_a/src/lib.rs
+large_core_edit	examples/incremental-workspace-large	app	crates/core/src/lib.rs
+large_util_edit	examples/incremental-workspace-large	app	crates/util/src/lib.rs

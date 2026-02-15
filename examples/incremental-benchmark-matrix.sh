@@ -9,8 +9,12 @@ TARGET_CRATE="app"
 JSON_OUTPUT=0
 SCENARIOS_FILE=""
 
-export CARGO2NIX_SETUP_CMD="${CARGO2NIX_SETUP_CMD:-nix run github:cargo2nix/cargo2nix -- --stdout > Cargo.nix}"
-export CARGO2NIX_BUILD_CMD="${CARGO2NIX_BUILD_CMD:-nix build --no-link --impure --expr \"let c2n = builtins.getFlake \\\"github:cargo2nix/cargo2nix\\\"; pkgs = import c2n.inputs.nixpkgs { system = builtins.currentSystem; overlays = [ c2n.overlays.default ]; }; rustPkgs = pkgs.rustBuilder.makePackageSet { rustVersion = \\\"1.83.0\\\"; packageFun = import ./Cargo.nix; }; in rustPkgs.workspace.app {}\"}"
+if [ -z "${CARGO2NIX_SETUP_CMD:-}" ]; then
+  export CARGO2NIX_SETUP_CMD='nix run github:cargo2nix/cargo2nix -- --stdout > Cargo.nix'
+fi
+if [ -z "${CARGO2NIX_BUILD_CMD:-}" ]; then
+  export CARGO2NIX_BUILD_CMD='nix build --no-link --impure --expr "let c2n = builtins.getFlake \"github:cargo2nix/cargo2nix\"; pkgs = import c2n.inputs.nixpkgs { system = builtins.currentSystem; overlays = [ c2n.overlays.default ]; }; rustPkgs = pkgs.rustBuilder.makePackageSet { rustVersion = \"1.83.0\"; packageFun = import ./Cargo.nix; }; in rustPkgs.workspace.app {}"'
+fi
 
 usage() {
   cat <<'EOF'
@@ -85,9 +89,12 @@ run_scenario() {
   local workspace_dir="$2"
   local target_crate="$3"
   local mutation_file="$4"
-  if [ "${workspace_dir}" != /* ]; then
+  case "${workspace_dir}" in
+    /*) ;;
+    *)
     workspace_dir="${ROOT_DIR}/${workspace_dir}"
-  fi
+      ;;
+  esac
   local result_json
   result_json="$(
     "${ROOT_DIR}/examples/incremental-benchmark.sh" \

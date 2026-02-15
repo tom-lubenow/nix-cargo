@@ -1,0 +1,182 @@
+[
+  {
+    "scenario": "large_core_edit",
+    "workspace": "/home/tom/git/nix-cargo/examples/incremental-workspace-large",
+    "target_crate": "app",
+    "mutation_file": "crates/core/src/lib.rs",
+    "engine": "cargo2nix",
+    "phase": "cold",
+    "derivations": 0
+  },
+  {
+    "scenario": "large_core_edit",
+    "workspace": "/home/tom/git/nix-cargo/examples/incremental-workspace-large",
+    "target_crate": "app",
+    "mutation_file": "crates/core/src/lib.rs",
+    "engine": "cargo2nix",
+    "phase": "rebuild",
+    "derivations": 0
+  },
+  {
+    "scenario": "large_core_edit",
+    "workspace": "/home/tom/git/nix-cargo/examples/incremental-workspace-large",
+    "target_crate": "app",
+    "mutation_file": "crates/core/src/lib.rs",
+    "engine": "nix-cargo",
+    "phase": "cold",
+    "derivations": 12
+  },
+  {
+    "scenario": "large_core_edit",
+    "workspace": "/home/tom/git/nix-cargo/examples/incremental-workspace-large",
+    "target_crate": "app",
+    "mutation_file": "crates/core/src/lib.rs",
+    "engine": "nix-cargo",
+    "phase": "rebuild",
+    "derivations": 2
+  },
+  {
+    "scenario": "large_leaf_a_edit",
+    "workspace": "/home/tom/git/nix-cargo/examples/incremental-workspace-large",
+    "target_crate": "app",
+    "mutation_file": "crates/leaf_a/src/lib.rs",
+    "engine": "cargo2nix",
+    "phase": "cold",
+    "derivations": 0
+  },
+  {
+    "scenario": "large_leaf_a_edit",
+    "workspace": "/home/tom/git/nix-cargo/examples/incremental-workspace-large",
+    "target_crate": "app",
+    "mutation_file": "crates/leaf_a/src/lib.rs",
+    "engine": "cargo2nix",
+    "phase": "rebuild",
+    "derivations": 0
+  },
+  {
+    "scenario": "large_leaf_a_edit",
+    "workspace": "/home/tom/git/nix-cargo/examples/incremental-workspace-large",
+    "target_crate": "app",
+    "mutation_file": "crates/leaf_a/src/lib.rs",
+    "engine": "nix-cargo",
+    "phase": "cold",
+    "derivations": 12
+  },
+  {
+    "scenario": "large_leaf_a_edit",
+    "workspace": "/home/tom/git/nix-cargo/examples/incremental-workspace-large",
+    "target_crate": "app",
+    "mutation_file": "crates/leaf_a/src/lib.rs",
+    "engine": "nix-cargo",
+    "phase": "rebuild",
+    "derivations": 4
+  },
+  {
+    "scenario": "large_mid_a_edit",
+    "workspace": "/home/tom/git/nix-cargo/examples/incremental-workspace-large",
+    "target_crate": "app",
+    "mutation_file": "crates/mid_a/src/lib.rs",
+    "engine": "cargo2nix",
+    "phase": "cold",
+    "derivations": 0
+  },
+  {
+    "scenario": "large_mid_a_edit",
+    "workspace": "/home/tom/git/nix-cargo/examples/incremental-workspace-large",
+    "target_crate": "app",
+    "mutation_file": "crates/mid_a/src/lib.rs",
+    "engine": "cargo2nix",
+    "phase": "rebuild",
+    "derivations": 0
+  },
+  {
+    "scenario": "large_mid_a_edit",
+    "workspace": "/home/tom/git/nix-cargo/examples/incremental-workspace-large",
+    "target_crate": "app",
+    "mutation_file": "crates/mid_a/src/lib.rs",
+    "engine": "nix-cargo",
+    "phase": "cold",
+    "derivations": 12
+  },
+  {
+    "scenario": "large_mid_a_edit",
+    "workspace": "/home/tom/git/nix-cargo/examples/incremental-workspace-large",
+    "target_crate": "app",
+    "mutation_file": "crates/mid_a/src/lib.rs",
+    "engine": "nix-cargo",
+    "phase": "rebuild",
+    "derivations": 3
+  },
+  {
+    "scenario": "large_util_edit",
+    "workspace": "/home/tom/git/nix-cargo/examples/incremental-workspace-large",
+    "target_crate": "app",
+    "mutation_file": "crates/util/src/lib.rs",
+    "engine": "cargo2nix",
+    "phase": "cold",
+    "derivations": 0
+  },
+  {
+    "scenario": "large_util_edit",
+    "workspace": "/home/tom/git/nix-cargo/examples/incremental-workspace-large",
+    "target_crate": "app",
+    "mutation_file": "crates/util/src/lib.rs",
+    "engine": "cargo2nix",
+    "phase": "rebuild",
+    "derivations": 0
+  },
+  {
+    "scenario": "large_util_edit",
+    "workspace": "/home/tom/git/nix-cargo/examples/incremental-workspace-large",
+    "target_crate": "app",
+    "mutation_file": "crates/util/src/lib.rs",
+    "engine": "nix-cargo",
+    "phase": "cold",
+    "derivations": 12
+  },
+  {
+    "scenario": "large_util_edit",
+    "workspace": "/home/tom/git/nix-cargo/examples/incremental-workspace-large",
+    "target_crate": "app",
+    "mutation_file": "crates/util/src/lib.rs",
+    "engine": "nix-cargo",
+    "phase": "rebuild",
+    "derivations": 2
+  },
+  {
+    "scenario": "small_core_edit",
+    "workspace": "/home/tom/git/nix-cargo/examples/incremental-workspace",
+    "target_crate": "app",
+    "mutation_file": "crates/corelib/src/lib.rs",
+    "engine": "cargo2nix",
+    "phase": "cold",
+    "derivations": 0
+  },
+  {
+    "scenario": "small_core_edit",
+    "workspace": "/home/tom/git/nix-cargo/examples/incremental-workspace",
+    "target_crate": "app",
+    "mutation_file": "crates/corelib/src/lib.rs",
+    "engine": "cargo2nix",
+    "phase": "rebuild",
+    "derivations": 0
+  },
+  {
+    "scenario": "small_core_edit",
+    "workspace": "/home/tom/git/nix-cargo/examples/incremental-workspace",
+    "target_crate": "app",
+    "mutation_file": "crates/corelib/src/lib.rs",
+    "engine": "nix-cargo",
+    "phase": "cold",
+    "derivations": 2
+  },
+  {
+    "scenario": "small_core_edit",
+    "workspace": "/home/tom/git/nix-cargo/examples/incremental-workspace",
+    "target_crate": "app",
+    "mutation_file": "crates/corelib/src/lib.rs",
+    "engine": "nix-cargo",
+    "phase": "rebuild",
+    "derivations": 2
+  }
+]

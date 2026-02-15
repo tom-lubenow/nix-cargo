@@ -135,6 +135,13 @@ nix-instantiate --eval ./nix-cargo-plan.nix
 #     ./examples/incremental-benchmark-matrix.sh --json
 #     ./examples/incremental-benchmark-matrix.sh \
 #       --scenarios-file ./examples/benchmark-matrix-scenarios/large.tsv
+#
+# 18) Matrix baseline snapshot check (scenario-file driven)
+#     ./examples/incremental-benchmark-matrix-baseline-check.sh
+#     # update checked-in baseline:
+#     ./examples/incremental-benchmark-matrix-baseline-check.sh --update
+#     # validate only nix-cargo rows:
+#     ./examples/incremental-benchmark-matrix-baseline-check.sh --engine nix-cargo
 ```
 
 ## Notes

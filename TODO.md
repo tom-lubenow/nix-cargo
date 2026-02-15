@@ -33,14 +33,15 @@
 
 ## In-progress now
 
-- [ ] Add a real-world benchmark matrix harness (multiple edit classes) and capture snapshots.
+- [ ] Wire benchmark baseline checks into flake/CI checks.
 
 ## Benchmarking
 
 - [x] Add an incrementalism benchmark harness (`examples/incremental-benchmark.sh`) with
   cold/rebuild derivation-count and elapsed-time reporting.
 - [x] Add CI-friendly baseline snapshots for benchmark fixtures.
-- [ ] Add a real-world benchmark matrix harness and baseline snapshots.
+- [x] Add a real-world benchmark matrix harness and baseline snapshots.
   - [x] Added local multi-scenario harness (`examples/incremental-benchmark-matrix.sh`).
   - [x] Added scenario-file format and reusable scenario set (`examples/benchmark-matrix-scenarios/large.tsv`).
-  - [ ] Add repo-backed scenario sets and baseline snapshots.
+  - [x] Added repo-backed scenario set (`examples/benchmark-matrix-scenarios/repo.tsv`).
+  - [x] Added matrix baseline snapshot + checker (`examples/benchmark-baselines/matrix-repo.json`, `examples/incremental-benchmark-matrix-baseline-check.sh`).

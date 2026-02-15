@@ -14,3 +14,8 @@ Example:
 ```text
 leaf_edit	examples/incremental-workspace-large	app	crates/leaf_a/src/lib.rs
 ```
+
+Included scenario files:
+
+- `large.tsv`: single-workspace large DAG scenarios.
+- `repo.tsv`: repository-backed mixed scenarios (small + large fixtures).
