@@ -45,5 +45,6 @@ pub(crate) fn render_command_script(units: &[Unit]) -> String {
 }
 
 fn is_build_script_compile(unit: &Unit) -> bool {
-    unit.target_kind == "custom-build" && unit.compile_mode == "Build"
+    (unit.target_kind == "build-script" || unit.target_kind == "custom-build")
+        && unit.compile_mode == "Build"
 }

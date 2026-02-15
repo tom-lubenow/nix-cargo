@@ -31,7 +31,8 @@ pub fn package_layout_by_key(plan: &Plan) -> HashMap<String, PackageLayoutRequir
 
     for unit in &plan.units {
         let is_host_forced =
-            unit.target_kind == "custom-build"
+            unit.target_kind == "build-script"
+                || unit.target_kind == "custom-build"
                 || unit.target_kind == "proc-macro"
                 || unit.compile_mode.contains("build-script");
 

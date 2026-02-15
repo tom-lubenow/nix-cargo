@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};
-use cargo::core::compiler::{CompileMode, DefaultExecutor, Executor, MessageFormat, UserIntent};
+use cargo::core::compiler::{CompileMode, DefaultExecutor, Executor, UserIntent};
 use cargo::core::manifest::Target;
 use cargo::core::{PackageId, Verbosity};
 use cargo::ops::{self, CompileOptions};
@@ -126,11 +126,6 @@ pub fn build_plan(
     }
     options.build_config.keep_going = true;
     options.build_config.jobs = 1;
-    options.build_config.message_format = MessageFormat::Json {
-        render_diagnostics: true,
-        short: false,
-        ansi: false,
-    };
     options.build_config.dry_run = false;
     options.build_config.force_rebuild = true;
 
@@ -156,9 +151,10 @@ pub fn build_plan(
         .map(|captured| {
             let normalized_command = normalize_command(captured.command, &rewrite_context);
             let target_triple = command_target_triple(&normalized_command);
-            let build_script_binary = if captured.target_kind == "custom-build"
-                && captured.compile_mode == "Build"
-            {
+            let build_script_binary = if is_build_script_compile_kind(
+                &captured.target_kind,
+                &captured.compile_mode,
+            ) {
                 captured
                     .link_artifact
                     .as_deref()
@@ -449,6 +445,10 @@ fn parse_link_artifact(line: &str) -> Option<String> {
         return parsed.artifact;
     }
     None
+}
+
+fn is_build_script_compile_kind(target_kind: &str, compile_mode: &str) -> bool {
+    (target_kind == "build-script" || target_kind == "custom-build") && compile_mode == "Build"
 }
 
 fn is_path_token_boundary_before(ch: Option<char>) -> bool {
