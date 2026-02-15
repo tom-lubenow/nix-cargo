@@ -20,22 +20,23 @@
           cargoExtraArgs = "--locked";
         };
         cargoArtifacts = craneLib.buildDepsOnly (common);
+        mkDriver = import ./lib/mk-driver.nix {
+          lib = pkgs.lib;
+          inherit pkgs;
+          nixCargo = self.packages.${system}.default;
+        };
       in {
         packages = {
           default = craneLib.buildPackage (common // { inherit cargoArtifacts; });
-          driver-default = pkgs.callPackage ./driver.nix {
+          driver-default = mkDriver {
             inherit src;
-            nixCargo = self.packages.${system}.default;
             name = "nix-cargo-driver-default";
             target = "default";
           };
         };
 
         legacyPackages = {
-          mkDriver = args:
-            pkgs.callPackage ./driver.nix ({
-              nixCargo = self.packages.${system}.default;
-            } // args);
+          inherit mkDriver;
         };
 
         devShells.default = pkgs.mkShell {

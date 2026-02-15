@@ -24,6 +24,8 @@ internal compile pipeline.
   from the planned package/workspace `.drv` path.
 - `flake.nix` exports `legacyPackages.<system>.mkDriver` to construct dynamic planner drivers for
   arbitrary Rust workspaces.
+  That entrypoint is typed via `lib.evalModules` (`lib/mk-driver.nix`) so driver args are
+  validated (paths, bools, optional fields, etc.).
 
 ## Quick end-to-end MVP
 
