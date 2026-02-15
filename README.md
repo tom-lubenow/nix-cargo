@@ -10,6 +10,8 @@ internal compile pipeline.
 - `graph` prints the workspace package graph (including workspace-only deps).
 - `plan` emits a full resolved package DAG plus structured compile units (`cwd` + `env` +
   `program` + `args`) captured from Cargo's internal executor.
+- `plan`/`emit` support `--target-triple <triple>` to plan cross-target command graphs through
+  Cargo internals (via `CARGO_BUILD_TARGET`).
 - `emit` emits a Nix expression with one derivation per resolved package (workspace + external),
   replaying each package's own captured Cargo-executor command sequence with deterministic path
   marker substitution.
@@ -33,6 +35,11 @@ cargo run -- graph --json
 cargo run -- emit --output ./nix-cargo-plan.nix \
   --manifest-path /path/to/workspace/Cargo.toml
 
+# 2b) Emit for an explicit target triple
+cargo run -- emit --output ./nix-cargo-plan-aarch64.nix \
+  --manifest-path /path/to/workspace/Cargo.toml \
+  --target-triple aarch64-unknown-linux-gnu
+
 # 3) Evaluate expression (sanity)
 nix-instantiate --eval ./nix-cargo-plan.nix
 
@@ -53,6 +60,8 @@ nix-instantiate --eval ./nix-cargo-plan.nix
 #   - `target = "default"` builds workspace default output
 #   - `target = "<full package key>"` exact package
 #   - `target = "<crate-name>"` works if the crate name is unique in the resolved graph
+# Driver planning target:
+#   - `targetTriple = "aarch64-unknown-linux-gnu"` forwards to `nix-cargo emit --target-triple ...`
 
 # 6) Minimal workspace integration check
 #    ./examples/integration-check.sh
@@ -110,3 +119,4 @@ nix-instantiate --eval ./nix-cargo-plan.nix
   (`targetTriples`/`needsHostArtifacts`) instead of broad directory globbing.
 - Host-vs-target inference is unit-aware (`target_kind`/`compile_mode`), so `custom-build` and
   `proc-macro` units stay on host artifact layouts even in cross-target graphs.
+- `Plan` JSON now includes `target_triple` when planning is performed with `--target-triple`.

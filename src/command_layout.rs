@@ -145,6 +145,7 @@ mod tests {
             manifest_path: "/tmp/Cargo.toml".to_string(),
             cargo_home: "/tmp/ch".to_string(),
             target_dir: "/tmp/target".to_string(),
+            target_triple: None,
             packages: vec![PlanPackage {
                 key: package_key.to_string(),
                 name: "pkg".to_string(),
@@ -189,6 +190,7 @@ mod tests {
             manifest_path: "/tmp/Cargo.toml".to_string(),
             cargo_home: "/tmp/ch".to_string(),
             target_dir: "/tmp/target".to_string(),
+            target_triple: None,
             packages: vec![PlanPackage {
                 key: package_key.to_string(),
                 name: "pkg".to_string(),

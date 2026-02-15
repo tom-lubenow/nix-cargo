@@ -6,6 +6,7 @@
 , gitSourceHashes ? { }
 , allowImpureGitFetch ? false
 , release ? false
+, targetTriple ? null
 , target ? "default"
 , name ? "nix-cargo-driver"
 }:
@@ -37,6 +38,7 @@ let
     PLAN_ALLOW_IMPURE_GIT_FETCH = if allowImpureGitFetch then "true" else "false";
     PLAN_MANIFEST = manifestStorePath;
     PLAN_RELEASE = if release then "true" else "false";
+    PLAN_TARGET_TRIPLE = if targetTriple == null then "" else targetTriple;
     PLAN_TARGET = target;
 
     NIX_CONFIG = "extra-experimental-features = nix-command flakes ca-derivations dynamic-derivations recursive-nix";
@@ -48,12 +50,17 @@ let
     if [ "$PLAN_RELEASE" = "true" ]; then
       releaseArgs+=(--release)
     fi
+    targetArgs=()
+    if [ -n "$PLAN_TARGET_TRIPLE" ]; then
+      targetArgs+=(--target-triple "$PLAN_TARGET_TRIPLE")
+    fi
     export CARGO_TARGET_DIR="$TMPDIR/target"
     mkdir -p "$CARGO_TARGET_DIR"
 
     "${nixCargo}/bin/nix-cargo" emit \
       --manifest-path "$PLAN_MANIFEST" \
       "''${releaseArgs[@]}" \
+      "''${targetArgs[@]}" \
       --output "$planNix"
 
     resolveNix="$TMPDIR/nix-cargo-resolve.nix"

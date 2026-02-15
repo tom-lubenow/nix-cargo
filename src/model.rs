@@ -31,6 +31,7 @@ pub struct Plan {
     pub manifest_path: String,
     pub cargo_home: String,
     pub target_dir: String,
+    pub target_triple: Option<String>,
     pub packages: Vec<PlanPackage>,
     pub units: Vec<Unit>,
 }

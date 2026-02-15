@@ -1,4 +1,5 @@
 use std::collections::{BTreeSet, HashMap};
+use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
@@ -17,7 +18,12 @@ use crate::model::{
     PATH_MARKER_CARGO_HOME, PATH_MARKER_RUSTC, PATH_MARKER_SRC, PATH_MARKER_TARGET,
 };
 
-pub fn build_plan(manifest_path: Option<&Path>, release: bool) -> Result<Plan> {
+pub fn build_plan(
+    manifest_path: Option<&Path>,
+    release: bool,
+    target_triple: Option<&str>,
+) -> Result<Plan> {
+    let _target_env = ScopedEnvVar::set("CARGO_BUILD_TARGET", target_triple);
     let gctx = GlobalContext::default().context("failed to initialize cargo global context")?;
     gctx.shell().set_verbosity(Verbosity::Quiet);
 
@@ -158,9 +164,49 @@ pub fn build_plan(manifest_path: Option<&Path>, release: bool) -> Result<Plan> {
         manifest_path: manifest_path.display().to_string(),
         cargo_home,
         target_dir,
+        target_triple: target_triple.map(ToOwned::to_owned),
         packages,
         units,
     })
+}
+
+struct ScopedEnvVar {
+    key: &'static str,
+    previous: Option<OsString>,
+    active: bool,
+}
+
+impl ScopedEnvVar {
+    fn set(key: &'static str, value: Option<&str>) -> Self {
+        let Some(value) = value else {
+            return Self {
+                key,
+                previous: None,
+                active: false,
+            };
+        };
+
+        let previous = std::env::var_os(key);
+        std::env::set_var(key, value);
+        Self {
+            key,
+            previous,
+            active: true,
+        }
+    }
+}
+
+impl Drop for ScopedEnvVar {
+    fn drop(&mut self) {
+        if !self.active {
+            return;
+        }
+
+        match &self.previous {
+            Some(previous) => std::env::set_var(self.key, previous),
+            None => std::env::remove_var(self.key),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

@@ -41,6 +41,9 @@ enum Commands {
         /// Emit release build command shape.
         #[arg(long)]
         release: bool,
+        /// Build for this target triple (plumbed to Cargo planning via CARGO_BUILD_TARGET).
+        #[arg(long)]
+        target_triple: Option<String>,
     },
     /// Emit a Nix expression with per-package derivations plus dynamic output refs.
     Emit {
@@ -52,6 +55,9 @@ enum Commands {
         /// Use --release for generated crate build commands.
         #[arg(long)]
         release: bool,
+        /// Build for this target triple (plumbed to Cargo planning via CARGO_BUILD_TARGET).
+        #[arg(long)]
+        target_triple: Option<String>,
     },
 }
 
@@ -74,8 +80,13 @@ fn main() -> Result<()> {
             manifest_path,
             json,
             release,
+            target_triple,
         } => {
-            let plan = cargo_plan::build_plan(manifest_path.as_deref(), release)?;
+            let plan = cargo_plan::build_plan(
+                manifest_path.as_deref(),
+                release,
+                target_triple.as_deref(),
+            )?;
 
             if json {
                 print_json(&plan)?;
@@ -97,8 +108,13 @@ fn main() -> Result<()> {
             manifest_path,
             output,
             release,
+            target_triple,
         } => {
-            let plan = cargo_plan::build_plan(manifest_path.as_deref(), release)?;
+            let plan = cargo_plan::build_plan(
+                manifest_path.as_deref(),
+                release,
+                target_triple.as_deref(),
+            )?;
             let generated = nix_emit::render_nix_expression(&plan, release);
 
             match output {
