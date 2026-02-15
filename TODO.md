@@ -33,7 +33,7 @@
 
 ## In-progress now
 
-- [ ] Wire benchmark baseline checks into flake/CI checks.
+- [ ] Add a cargo2nix-enabled benchmark lane for environments that can afford tool bootstrap.
 
 ## Benchmarking
 
@@ -45,3 +45,6 @@
   - [x] Added scenario-file format and reusable scenario set (`examples/benchmark-matrix-scenarios/large.tsv`).
   - [x] Added repo-backed scenario set (`examples/benchmark-matrix-scenarios/repo.tsv`).
   - [x] Added matrix baseline snapshot + checker (`examples/benchmark-baselines/matrix-repo.json`, `examples/incremental-benchmark-matrix-baseline-check.sh`).
+- [x] Wire benchmark baseline checks into flake/CI checks.
+  - [x] Added flake apps (`benchmark-baseline-check`, `benchmark-matrix-baseline-check`, `benchmark-ci-checks`).
+  - [x] Added flake schema checks for baseline snapshots and scenario files.

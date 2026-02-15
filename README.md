@@ -142,6 +142,14 @@ nix-instantiate --eval ./nix-cargo-plan.nix
 #     ./examples/incremental-benchmark-matrix-baseline-check.sh --update
 #     # validate only nix-cargo rows:
 #     ./examples/incremental-benchmark-matrix-baseline-check.sh --engine nix-cargo
+#
+# 19) Flake/CI entrypoints
+#     nix run .#benchmark-ci-checks
+#     nix run .#benchmark-baseline-check
+#     nix run .#benchmark-matrix-baseline-check
+#     nix flake check
+#     # `nix flake check` validates baseline/scenario schemas;
+#     # runnable benchmark checks are exposed as flake apps above.
 ```
 
 ## Notes
