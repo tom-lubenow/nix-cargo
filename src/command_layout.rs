@@ -131,6 +131,7 @@ mod tests {
             target_kind: target_kind.to_string(),
             compile_mode: compile_mode.to_string(),
             target_triple: command_target_triple(&command),
+            build_script_binary: None,
             package_dependencies: Vec::new(),
             command,
         }

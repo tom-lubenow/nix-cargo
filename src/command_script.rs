@@ -9,6 +9,7 @@ pub(crate) fn render_command_script(units: &[Unit]) -> String {
     for (index, unit) in units.iter().enumerate() {
         let command = &unit.command;
         let is_build_script_compile = if is_build_script_compile(unit) { 1 } else { 0 };
+        let build_script_binary = unit.build_script_binary.clone().unwrap_or_default();
         let args_var = format!("cmd_args_{index}");
         let env_var = format!("cmd_env_{index}");
         let cwd = command.cwd.clone().unwrap_or_default();
@@ -31,7 +32,8 @@ pub(crate) fn render_command_script(units: &[Unit]) -> String {
         );
         let _ = writeln!(
             script,
-            "  run_cargo_cmd {is_build_script_compile} {} {} {args_var} {env_var}",
+            "  run_cargo_cmd {is_build_script_compile} {} {} {} {args_var} {env_var}",
+            shell_single_quote(&build_script_binary),
             shell_single_quote(&cwd),
             shell_single_quote(&command.program),
         );

@@ -230,6 +230,8 @@ pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
     out.push_str("          run_cargo_cmd() {\n");
     out.push_str("            local isBuildScriptCompile=\"$1\"\n");
     out.push_str("            shift\n");
+    out.push_str("            local buildScriptBinaryHintRaw=\"$1\"\n");
+    out.push_str("            shift\n");
     out.push_str("            local cwdRaw=\"$1\"\n");
     out.push_str("            shift\n");
     out.push_str("            local programRaw=\"$1\"\n");
@@ -237,11 +239,12 @@ pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
     out.push_str("            local -n argsRef=\"$1\"\n");
     out.push_str("            shift\n");
     out.push_str("            local -n envRef=\"$1\"\n");
-    out.push_str("            local cwd program entry key value status outDir manifestDir runDir outputPath commandOutDir buildScriptBinary\n");
+    out.push_str("            local cwd program entry key value status outDir manifestDir runDir outputPath commandOutDir buildScriptBinary buildScriptBinaryHint\n");
     out.push_str("            local -a args=()\n");
     out.push_str("            local -a envArgs=()\n");
     out.push_str("            cwd=\"$(rewrite_value \"$cwdRaw\")\"\n");
     out.push_str("            program=\"$(rewrite_value \"$programRaw\")\"\n");
+    out.push_str("            buildScriptBinaryHint=\"$(rewrite_value \"$buildScriptBinaryHintRaw\")\"\n");
     out.push_str("            for entry in \"''${envRef[@]}\"; do\n");
     out.push_str("              key=\"''${entry%%=*}\"\n");
     out.push_str("              value=\"''${entry#*=}\"\n");
@@ -340,7 +343,9 @@ pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
     out.push_str("              nextIndex=$((nextIndex + 1))\n");
     out.push_str("            done\n");
     out.push_str("            buildScriptBinary=\"\"\n");
-    out.push_str("            if [ -n \"$runDir\" ] && [ -n \"''${nixcargo_build_script_binaries[$runDir]:-}\" ]; then\n");
+    out.push_str("            if [ -n \"$buildScriptBinaryHint\" ]; then\n");
+    out.push_str("              buildScriptBinary=\"$buildScriptBinaryHint\"\n");
+    out.push_str("            elif [ -n \"$runDir\" ] && [ -n \"''${nixcargo_build_script_binaries[$runDir]:-}\" ]; then\n");
     out.push_str("              buildScriptBinary=\"''${nixcargo_build_script_binaries[$runDir]}\"\n");
     out.push_str("            fi\n");
     out.push_str("            if [ \"$isBuildScriptCompile\" -ne 1 ] && [ -n \"$outDir\" ] && [ -n \"$buildScriptBinary\" ] && [ -x \"$buildScriptBinary\" ] && [ -z \"''${nixcargo_build_script_runs[$outDir]+x}\" ]; then\n");
@@ -358,6 +363,9 @@ pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
     out.push_str("            env \"''${envArgs[@]}\" \"$program\" \"''${args[@]}\"\n");
     out.push_str("            status=$?\n");
     out.push_str("            if [ \"$status\" -eq 0 ] && [ \"$isBuildScriptCompile\" -eq 1 ]; then\n");
+    out.push_str("              if [ -z \"$outputPath\" ] && [ -n \"$buildScriptBinaryHint\" ]; then\n");
+    out.push_str("                outputPath=\"$buildScriptBinaryHint\"\n");
+    out.push_str("              fi\n");
     out.push_str("              if [ -z \"$outputPath\" ] && [ -n \"$commandOutDir\" ] && [ -d \"$commandOutDir\" ]; then\n");
     out.push_str("                outputPath=\"$(find \"$commandOutDir\" -maxdepth 1 -type f -name 'build_script_build*' -perm -u+x | LC_ALL=C sort | head -n1 || true)\"\n");
     out.push_str("              fi\n");

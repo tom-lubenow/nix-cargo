@@ -7,7 +7,8 @@
   - [x] Added per-`runDir` build-script binary mapping to reduce global/fallback coupling.
   - [x] Replay control now uses explicit unit metadata (`custom-build` compile units).
   - [x] Remove remaining fallback heuristics.
-  - [ ] Remove binary-path discovery fallback (`--out-dir` scan) by carrying resolved output path directly from planning.
+  - [x] Carry resolved build-script binary path from planning metadata into replay commands.
+  - [ ] Remove binary-path discovery fallback (`--out-dir` scan) once planning metadata is always present.
 
 ## Priority 1 (correctness hardening)
 

@@ -151,6 +151,16 @@ pub fn build_plan(
         .map(|captured| {
             let normalized_command = normalize_command(captured.command, &rewrite_context);
             let target_triple = command_target_triple(&normalized_command);
+            let build_script_binary = if captured.target_kind == "custom-build"
+                && captured.compile_mode == "Build"
+            {
+                captured
+                    .link_artifact
+                    .as_deref()
+                    .map(|artifact| normalize_value(artifact, &rewrite_context))
+            } else {
+                None
+            };
 
             Unit {
                 unit_id: captured.unit_id,
@@ -165,6 +175,7 @@ pub fn build_plan(
                 target_kind: captured.target_kind,
                 compile_mode: captured.compile_mode,
                 target_triple,
+                build_script_binary,
                 package_dependencies: package_dependencies
                     .get(captured.package_key.as_str())
                     .cloned()
@@ -193,6 +204,7 @@ struct CapturedUnit {
     target_name: String,
     target_kind: String,
     compile_mode: String,
+    link_artifact: Option<String>,
     command: CommandSpec,
 }
 
@@ -233,6 +245,20 @@ impl Executor for RecordingExecutor {
         on_stdout_line: &mut dyn FnMut(&str) -> CargoResult<()>,
         on_stderr_line: &mut dyn FnMut(&str) -> CargoResult<()>,
     ) -> CargoResult<()> {
+        let mut link_artifact = None;
+        let result = if self.execute_commands {
+            let mut on_stdout = |line: &str| -> CargoResult<()> {
+                if let Some(artifact) = parse_link_artifact(line) {
+                    link_artifact = Some(artifact);
+                }
+                on_stdout_line(line)
+            };
+            self.delegate
+                .exec(cmd, id, target, mode, &mut on_stdout, on_stderr_line)
+        } else {
+            Ok(())
+        };
+
         let mut captured = self
             .captured
             .lock()
@@ -244,16 +270,12 @@ impl Executor for RecordingExecutor {
             target_name: target.name().to_string(),
             target_kind: target.kind().description().to_string(),
             compile_mode: format!("{mode:?}"),
+            link_artifact,
             command: capture_command(cmd),
         });
         drop(captured);
 
-        if self.execute_commands {
-            self.delegate
-                .exec(cmd, id, target, mode, on_stdout_line, on_stderr_line)
-        } else {
-            Ok(())
-        }
+        result
     }
 }
 
@@ -406,6 +428,22 @@ fn replace_prefix(value: String, from: &str, marker: &str) -> String {
 
 fn path_like(value: &str) -> bool {
     value.contains('/') || value.contains('\\')
+}
+
+#[derive(Debug, Deserialize)]
+struct RustcArtifactLine {
+    #[serde(rename = "$message_type")]
+    message_type: String,
+    artifact: Option<String>,
+    emit: Option<String>,
+}
+
+fn parse_link_artifact(line: &str) -> Option<String> {
+    let parsed: RustcArtifactLine = serde_json::from_str(line).ok()?;
+    if parsed.message_type == "artifact" && parsed.emit.as_deref() == Some("link") {
+        return parsed.artifact;
+    }
+    None
 }
 
 fn is_path_token_boundary_before(ch: Option<char>) -> bool {
