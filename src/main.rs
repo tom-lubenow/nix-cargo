@@ -41,7 +41,7 @@ enum Commands {
         /// Emit release build command shape.
         #[arg(long)]
         release: bool,
-        /// Build for this target triple (plumbed to Cargo planning via CARGO_BUILD_TARGET).
+        /// Build for this target triple (plumbed to Cargo build requested_kinds).
         #[arg(long)]
         target_triple: Option<String>,
     },
@@ -55,7 +55,7 @@ enum Commands {
         /// Use --release for generated crate build commands.
         #[arg(long)]
         release: bool,
-        /// Build for this target triple (plumbed to Cargo planning via CARGO_BUILD_TARGET).
+        /// Build for this target triple (plumbed to Cargo build requested_kinds).
         #[arg(long)]
         target_triple: Option<String>,
     },

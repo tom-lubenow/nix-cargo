@@ -1,5 +1,4 @@
 use std::collections::{BTreeSet, HashMap};
-use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
@@ -23,7 +22,6 @@ pub fn build_plan(
     release: bool,
     target_triple: Option<&str>,
 ) -> Result<Plan> {
-    let _target_env = ScopedEnvVar::set("CARGO_BUILD_TARGET", target_triple);
     let gctx = GlobalContext::default().context("failed to initialize cargo global context")?;
     gctx.shell().set_verbosity(Verbosity::Quiet);
 
@@ -117,6 +115,14 @@ pub fn build_plan(
     if release {
         options.build_config.requested_profile = InternedString::new("release");
     }
+    if let Some(target_triple) = target_triple {
+        options.build_config.requested_kinds =
+            cargo::core::compiler::CompileKind::from_requested_targets(
+                &gctx,
+                &[target_triple.to_string()],
+            )
+            .with_context(|| format!("failed to resolve target triple `{target_triple}`"))?;
+    }
     options.build_config.keep_going = true;
     options.build_config.dry_run = false;
     options.build_config.force_rebuild = true;
@@ -168,45 +174,6 @@ pub fn build_plan(
         packages,
         units,
     })
-}
-
-struct ScopedEnvVar {
-    key: &'static str,
-    previous: Option<OsString>,
-    active: bool,
-}
-
-impl ScopedEnvVar {
-    fn set(key: &'static str, value: Option<&str>) -> Self {
-        let Some(value) = value else {
-            return Self {
-                key,
-                previous: None,
-                active: false,
-            };
-        };
-
-        let previous = std::env::var_os(key);
-        std::env::set_var(key, value);
-        Self {
-            key,
-            previous,
-            active: true,
-        }
-    }
-}
-
-impl Drop for ScopedEnvVar {
-    fn drop(&mut self) {
-        if !self.active {
-            return;
-        }
-
-        match &self.previous {
-            Some(previous) => std::env::set_var(self.key, previous),
-            None => std::env::remove_var(self.key),
-        }
-    }
 }
 
 #[derive(Debug, Clone)]
