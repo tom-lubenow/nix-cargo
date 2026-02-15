@@ -135,9 +135,10 @@ pub fn build_plan(
     let compile_result = ops::compile_with_exec(&ws, &options, &exec);
     let captured_units = executor.captured_units();
     if let Err(error) = compile_result {
-        if captured_units.is_empty() {
-            return Err(error).context("cargo compile planning failed");
-        }
+        let captured_count = captured_units.len();
+        return Err(error).with_context(|| {
+            format!("cargo compile planning failed (captured_units={captured_count})")
+        });
     }
 
     let package_versions: HashMap<&str, &str> = packages
