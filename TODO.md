@@ -19,6 +19,7 @@
 
 - [ ] Continue splitting `nix_emit.rs` into typed data modeling + renderer modules.
   - [x] Extracted cargo-home emission section into `src/nix_cargo_home_emit.rs`.
+  - [x] Extracted public-attrset emission section into `src/nix_public_attrs_emit.rs`.
 - [ ] Add focused regression tests for:
   - [x] strict planner failure behavior
   - [x] multi-build-script workspaces
