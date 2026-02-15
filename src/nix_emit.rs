@@ -1,7 +1,8 @@
-use std::collections::{BTreeSet, HashMap};
+use std::collections::HashMap;
 use std::fmt::Write;
 
 use crate::cargo_home::{build_cargo_home_materialization_plan, CargoHomeMaterializationPlan};
+use crate::command_layout::{package_needs_host_artifacts, package_target_triples};
 use crate::model::{
     CommandSpec, Plan, PlanPackage, PATH_MARKER_CARGO_BIN, PATH_MARKER_CARGO_HOME,
     PATH_MARKER_RUSTC, PATH_MARKER_SRC, PATH_MARKER_TARGET,
@@ -486,42 +487,6 @@ fn topologically_sorted_packages(plan: &Plan) -> Vec<&PlanPackage> {
     }
 
     out
-}
-
-fn package_target_triples(commands: &[CommandSpec]) -> Vec<String> {
-    commands
-        .iter()
-        .filter_map(command_target_triple)
-        .collect::<BTreeSet<_>>()
-        .into_iter()
-        .collect()
-}
-
-fn package_needs_host_artifacts(commands: &[CommandSpec]) -> bool {
-    commands
-        .iter()
-        .any(|command| command_target_triple(command).is_none())
-}
-
-fn command_target_triple(command: &CommandSpec) -> Option<String> {
-    let mut args = command.args.iter();
-    while let Some(arg) = args.next() {
-        if let Some(value) = arg.strip_prefix("--target=") {
-            if !value.is_empty() {
-                return Some(value.to_string());
-            }
-            continue;
-        }
-
-        if arg == "--target" {
-            let next = args.next()?;
-            if !next.is_empty() {
-                return Some(next.to_string());
-            }
-            return None;
-        }
-    }
-    None
 }
 
 fn render_command_script(commands: &[CommandSpec]) -> String {
