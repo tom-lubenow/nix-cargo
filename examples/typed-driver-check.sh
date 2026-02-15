@@ -8,7 +8,7 @@ TARGET_NAME="${NIX_CARGO_DRIVER_TARGET:-app}"
 STATUS="$(
   nix eval --impure --raw --expr "
 let
-  flake = builtins.getFlake ${ROOT_DIR};
+  flake = builtins.getFlake (toString ${ROOT_DIR});
   drv = flake.legacyPackages.\${builtins.currentSystem}.mkDriver {
     src = ${ROOT_DIR}/examples/target-layout-workspace;
     targetTriple = \"${TARGET_TRIPLE}\";
