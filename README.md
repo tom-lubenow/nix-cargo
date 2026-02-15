@@ -66,6 +66,11 @@ nix-instantiate --eval ./nix-cargo-plan.nix
 #
 # 8) Run both checks
 #    ./examples/check-all.sh
+#
+# 9) Target-layout host/target split check
+#    ./examples/target-layout-check.sh
+#    # optionally:
+#    NIX_CARGO_BIN=./target/debug/nix-cargo ./examples/target-layout-check.sh
 ```
 
 ## Notes
@@ -95,6 +100,8 @@ nix-instantiate --eval ./nix-cargo-plan.nix
 - Included example workspace: `examples/incremental-workspace`.
 - Included complex fixture workspace (`proc-macro` + `build.rs`):
   `examples/proc-macro-workspace`.
+- Included target-layout fixture workspace (`build.target` + `build.rs`):
+  `examples/target-layout-workspace`.
 - Captured package derivations are emitted in explicit topological dependency order.
 - Dependency output hydration copies `deps`, `build`, `.fingerprint`, and target-triple variants to
   support strict per-package replay for build-script and proc-macro heavy graphs.

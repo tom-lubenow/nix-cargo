@@ -397,6 +397,13 @@ pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
     out.push_str(
         "  dynamicPackages = builtins.mapAttrs (_: drv: builtins.outputOf (builtins.unsafeDiscardOutputDependency drv.drvPath) \"out\") dynamicPackageDerivations;\n",
     );
+    out.push_str("  packageLayouts = builtins.listToAttrs (map (packageDef: {\n");
+    out.push_str("    name = packageDef.key;\n");
+    out.push_str("    value = {\n");
+    out.push_str("      targetTriples = packageDef.targetTriples;\n");
+    out.push_str("      needsHostArtifacts = packageDef.needsHostArtifacts;\n");
+    out.push_str("    };\n");
+    out.push_str("  }) cratePlan);\n");
     out.push_str("  workspaceDynamicPackages = builtins.listToAttrs (map (key: {\n");
     out.push_str("    name = key;\n");
     out.push_str("    value = builtins.getAttr key dynamicPackages;\n");
@@ -406,6 +413,7 @@ pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
     out.push_str("  inherit packageDerivations dynamicPackageDerivations;\n");
     out.push_str("  packages = packageDerivations;\n");
     out.push_str("  dynamicPackages = dynamicPackages;\n");
+    out.push_str("  packageLayouts = packageLayouts;\n");
     out.push_str("  driver = {\n");
     out.push_str("    kind = \"nix-cargo-driver\";\n");
     out.push_str("    targets = builtins.listToAttrs (map (key: {\n");
