@@ -31,3 +31,9 @@
 ## In-progress now
 
 - [ ] Execute remaining Priority 0 + Priority 1 hardening.
+
+## Benchmarking
+
+- [x] Add an incrementalism benchmark harness (`examples/incremental-benchmark.sh`) with
+  cold/rebuild derivation-count and elapsed-time reporting.
+- [ ] Add CI-friendly baseline snapshots for benchmark fixtures.

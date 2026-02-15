@@ -111,6 +111,14 @@ nix-instantiate --eval ./nix-cargo-plan.nix
 #
 # 13) Multi build-script workspace replay check
 #     ./examples/multi-build-script-check.sh
+#
+# 14) Incrementalism benchmark harness
+#     ./examples/incremental-benchmark.sh --engine nix-cargo
+#     ./examples/incremental-benchmark.sh --engine both
+#     # cargo2nix adapter mode:
+#     CARGO2NIX_SETUP_CMD='cargo2nix > Cargo.nix' \
+#     CARGO2NIX_BUILD_CMD='nix build --no-link --impure --expr "let pkgs = import <nixpkgs> {}; in (import ./Cargo.nix { inherit pkgs; }).rootCrate.build"' \
+#     ./examples/incremental-benchmark.sh --engine cargo2nix
 ```
 
 ## Notes
