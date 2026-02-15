@@ -72,11 +72,19 @@ let
     else { cargoHome = builtins.storePath cargoHomePath; }
   ));
   targetKey = builtins.getEnv "PLAN_TARGET";
+  packageKeys = builtins.attrNames plan.packageDerivations;
+  nameMatches = builtins.filter (key: pkgs.lib.hasPrefix (targetKey + " v") key) packageKeys;
+  matchedKey =
+    if builtins.length nameMatches == 1 then builtins.head nameMatches
+    else if builtins.length nameMatches == 0 then null
+    else throw "nix-cargo-driver: target ''${targetKey}' is ambiguous; pass full package key";
   drvPath =
     if targetKey == "default" then
       plan.default.drvPath
     else if builtins.hasAttr targetKey plan.packageDerivations then
       (builtins.getAttr targetKey plan.packageDerivations).drvPath
+    else if matchedKey != null then
+      (builtins.getAttr matchedKey plan.packageDerivations).drvPath
     else
       throw "nix-cargo-driver: unknown target ''${targetKey}'";
 in drvPath

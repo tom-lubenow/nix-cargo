@@ -48,6 +48,11 @@ nix-instantiate --eval ./nix-cargo-plan.nix
 # Optional for git dependencies with auto cargoHome:
 #   - deterministic: pass gitSourceHashes = { "<git+source>" = "sha256-..."; ...; }
 #   - fallback: set allowImpureGitFetch = true
+#
+# Driver target selection:
+#   - `target = "default"` builds workspace default output
+#   - `target = "<full package key>"` exact package
+#   - `target = "<crate-name>"` works if the crate name is unique in the resolved graph
 
 # 6) Minimal workspace integration check
 #    ./examples/integration-check.sh
