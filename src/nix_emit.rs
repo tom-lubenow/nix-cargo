@@ -404,6 +404,10 @@ pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
     out.push_str("      needsHostArtifacts = packageDef.needsHostArtifacts;\n");
     out.push_str("    };\n");
     out.push_str("  }) cratePlan);\n");
+    out.push_str("  workspacePackageLayouts = builtins.listToAttrs (map (key: {\n");
+    out.push_str("    name = key;\n");
+    out.push_str("    value = builtins.getAttr key packageLayouts;\n");
+    out.push_str("  }) workspacePackageKeys);\n");
     out.push_str("  workspaceDynamicPackages = builtins.listToAttrs (map (key: {\n");
     out.push_str("    name = key;\n");
     out.push_str("    value = builtins.getAttr key dynamicPackages;\n");
@@ -414,6 +418,7 @@ pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
     out.push_str("  packages = packageDerivations;\n");
     out.push_str("  dynamicPackages = dynamicPackages;\n");
     out.push_str("  packageLayouts = packageLayouts;\n");
+    out.push_str("  workspacePackageLayouts = workspacePackageLayouts;\n");
     out.push_str("  driver = {\n");
     out.push_str("    kind = \"nix-cargo-driver\";\n");
     out.push_str("    targets = builtins.listToAttrs (map (key: {\n");

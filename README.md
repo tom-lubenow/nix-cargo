@@ -93,6 +93,7 @@ nix-instantiate --eval ./nix-cargo-plan.nix
   same crate in one graph.
 - Dynamic refs are exposed as `dynamicPackages` and `workspaceDynamicPackages` (string outputs from
   `builtins.outputOf`).
+- Layout metadata is exposed as `packageLayouts` and `workspacePackageLayouts`.
 - A driver-like surface is exposed at `driver` with `targets.<package-id>.target` and
   `workspaceTargets`.
 - Current Nix emitter remains MVP quality: it seeds `CARGO_TARGET_DIR` from dependency outputs,
