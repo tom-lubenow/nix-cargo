@@ -92,3 +92,5 @@ nix-instantiate --eval ./nix-cargo-plan.nix
   support strict per-package replay for build-script and proc-macro heavy graphs.
 - Host-vs-target replay is now explicit per package via captured command metadata
   (`targetTriples`/`needsHostArtifacts`) instead of broad directory globbing.
+- Host-vs-target inference is unit-aware (`target_kind`/`compile_mode`), so `custom-build` and
+  `proc-macro` units stay on host artifact layouts even in cross-target graphs.

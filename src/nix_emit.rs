@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fmt::Write;
 
 use crate::cargo_home::{build_cargo_home_materialization_plan, CargoHomeMaterializationPlan};
-use crate::command_layout::{package_needs_host_artifacts, package_target_triples};
+use crate::command_layout::package_layout_by_key;
 use crate::model::{
     CommandSpec, Plan, PlanPackage, PATH_MARKER_CARGO_BIN, PATH_MARKER_CARGO_HOME,
     PATH_MARKER_RUSTC, PATH_MARKER_SRC, PATH_MARKER_TARGET,
@@ -13,6 +13,7 @@ pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
     let mut out = String::new();
     let ordered_packages = topologically_sorted_packages(plan);
     let commands_by_package = plan_commands_by_package(plan);
+    let package_layout = package_layout_by_key(plan);
     let source_prefixes_by_package = workspace_source_prefixes_by_package(plan);
     let cargo_home_plan = build_cargo_home_materialization_plan(plan);
     let release_default = if release_mode { "true" } else { "false" };
@@ -151,8 +152,11 @@ pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
             .get(package.key.as_str())
             .cloned()
             .unwrap_or_default();
-        let target_triples = package_target_triples(&package_commands);
-        let needs_host_artifacts = package_needs_host_artifacts(&package_commands);
+        let layout = package_layout.get(package.key.as_str());
+        let target_triples = layout
+            .map(|layout| layout.target_triples.clone())
+            .unwrap_or_default();
+        let needs_host_artifacts = layout.map(|layout| layout.needs_host_artifacts).unwrap_or(false);
         let package_source_prefixes = source_prefixes_by_package
             .get(package.key.as_str())
             .cloned()
