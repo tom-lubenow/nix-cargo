@@ -1,0 +1,22 @@
+[
+  {
+    "engine": "nix-cargo",
+    "phase": "cold",
+    "derivations": 2
+  },
+  {
+    "engine": "nix-cargo",
+    "phase": "rebuild",
+    "derivations": 2
+  },
+  {
+    "engine": "cargo2nix",
+    "phase": "cold",
+    "derivations": 2
+  },
+  {
+    "engine": "cargo2nix",
+    "phase": "rebuild",
+    "derivations": 2
+  }
+]

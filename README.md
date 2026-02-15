@@ -123,6 +123,12 @@ nix-instantiate --eval ./nix-cargo-plan.nix
 # 15) Large-DAG incremental benchmark target (defaults to --engine both)
 #     ./examples/incremental-benchmark-large.sh
 #     ./examples/incremental-benchmark-large.sh --json
+#
+# 16) CI-friendly benchmark baseline snapshot check (derivation counts)
+#     ./examples/incremental-benchmark-baseline-check.sh
+#     # optional modes:
+#     ./examples/incremental-benchmark-baseline-check.sh --engine nix-cargo
+#     ./examples/incremental-benchmark-baseline-check.sh --no-warmup
 ```
 
 ## Notes
