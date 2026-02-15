@@ -279,7 +279,7 @@ pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
     out.push_str("            local dstDir=\"$2\"\n");
     out.push_str("            if [ -d \"$srcDir\" ]; then\n");
     out.push_str("              mkdir -p \"$dstDir\"\n");
-    out.push_str("              cp -R -n \"$srcDir/.\" \"$dstDir/\" || true\n");
+    out.push_str("              cp -R -n \"$srcDir/.\" \"$dstDir/\"\n");
     out.push_str("            fi\n");
     out.push_str("          }\n");
     out.push_str("          for depPath in \"''${depPaths[@]}\"; do\n");
