@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WORKSPACE_DIR="${ROOT_DIR}/examples/target-layout-workspace"
 PLAN_FILE="${WORKSPACE_DIR}/nix-cargo-plan.nix"
+TARGET_TRIPLE="${NIX_CARGO_TARGET_TRIPLE:-x86_64-unknown-linux-gnu}"
 
 if [ -z "${NIX_CARGO_BIN:-}" ]; then
   if [ -x "${ROOT_DIR}/target/debug/nix-cargo" ]; then
@@ -13,11 +14,13 @@ if [ -z "${NIX_CARGO_BIN:-}" ]; then
   fi
 fi
 
-"${NIX_CARGO_BIN}" emit --manifest-path "${WORKSPACE_DIR}/Cargo.toml" --output "${PLAN_FILE}"
+"${NIX_CARGO_BIN}" emit \
+  --manifest-path "${WORKSPACE_DIR}/Cargo.toml" \
+  --target-triple "${TARGET_TRIPLE}" \
+  --output "${PLAN_FILE}"
 
 APP_KEY="app v0.1.0 (${WORKSPACE_DIR}/crates/app)"
 GEN_KEY="genmsg v0.1.0 (${WORKSPACE_DIR}/crates/genmsg)"
-TARGET_TRIPLE="x86_64-unknown-linux-gnu"
 
 LAYOUT_STATUS="$(
   nix eval --impure --raw --expr "
@@ -41,4 +44,3 @@ if [ "${LAYOUT_STATUS}" != "ok" ]; then
 fi
 
 echo "target-layout-check: ok"
-

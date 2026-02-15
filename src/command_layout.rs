@@ -17,6 +17,7 @@ pub struct PackageLayoutRequirements {
 ///
 /// The inference is unit-aware and prioritizes Cargo unit metadata for host-only kinds.
 pub fn package_layout_by_key(plan: &Plan) -> HashMap<String, PackageLayoutRequirements> {
+    let has_explicit_target_args = plan.units.iter().any(|unit| unit.target_triple.is_some());
     let mut host_flags: HashMap<String, bool> = plan
         .packages
         .iter()
@@ -39,7 +40,15 @@ pub fn package_layout_by_key(plan: &Plan) -> HashMap<String, PackageLayoutRequir
             continue;
         }
 
-        if let Some(triple) = unit.target_triple.clone() {
+        let inferred_target = unit.target_triple.clone().or_else(|| {
+            if has_explicit_target_args {
+                None
+            } else {
+                plan.target_triple.clone()
+            }
+        });
+
+        if let Some(triple) = inferred_target {
             target_sets
                 .entry(unit.package_key.clone())
                 .or_default()

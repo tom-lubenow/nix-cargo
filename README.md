@@ -96,6 +96,7 @@ nix-instantiate --eval ./nix-cargo-plan.nix
 #    ./examples/target-layout-check.sh
 #    # optionally:
 #    NIX_CARGO_BIN=./target/debug/nix-cargo ./examples/target-layout-check.sh
+#    NIX_CARGO_TARGET_TRIPLE=x86_64-unknown-linux-gnu ./examples/target-layout-check.sh
 #
 # 10) Explicit target-triple propagation check
 #     ./examples/target-triple-check.sh
