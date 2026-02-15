@@ -10,6 +10,7 @@ internal compile pipeline.
 - `graph` prints the workspace package graph (including workspace-only deps).
 - `plan` emits a full resolved package DAG plus structured compile units (`cwd` + `env` +
   `program` + `args`) captured from Cargo's internal executor.
+  Units also include `target_triple` metadata when Cargo emitted `--target`.
 - `plan`/`emit` support `--target-triple <triple>` to plan cross-target command graphs through
   Cargo internals (`BuildConfig.requested_kinds`).
 - `emit` emits a Nix expression with one derivation per resolved package (workspace + external),
