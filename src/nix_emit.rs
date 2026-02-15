@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::fmt::Write;
 
 use crate::cargo_home::{build_cargo_home_materialization_plan, CargoHomeMaterializationPlan};
@@ -82,7 +83,11 @@ pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
         );
     }
 
+    let mut emitted_git_bindings = BTreeSet::new();
     for git_entry in &cargo_home_plan.git_crates {
+        if !emitted_git_bindings.insert(git_entry.source_binding.clone()) {
+            continue;
+        }
         let _ = writeln!(
             out,
             "  {} = if builtins.hasAttr \"{}\" gitSourceHashes then pkgs.fetchgit {{ url = \"{}\"; rev = \"{}\"; hash = builtins.getAttr \"{}\" gitSourceHashes; }} else if allowImpureGitFetch then builtins.fetchGit {{ url = \"{}\"; rev = \"{}\"; }} else throw \"nix-cargo: missing git hash for source {}. Pass gitSourceHashes or set allowImpureGitFetch = true.\";",

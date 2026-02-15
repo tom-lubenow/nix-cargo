@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::Path;
 
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
@@ -35,6 +36,7 @@ pub(crate) struct GitCrateMaterialization {
 pub(crate) fn build_cargo_home_materialization_plan(plan: &Plan) -> CargoHomeMaterializationPlan {
     let mut registry_crates = Vec::new();
     let mut git_crates = Vec::new();
+    let mut git_source_bindings: HashMap<String, String> = HashMap::new();
     let mut unsupported_package_keys = Vec::new();
 
     for package in &plan.packages {
@@ -87,7 +89,14 @@ pub(crate) fn build_cargo_home_materialization_plan(plan: &Plan) -> CargoHomeMat
                 continue;
             };
 
-            let binding = format!("cargoGitSource{}", git_crates.len());
+            let binding = match git_source_bindings.get(&package.source) {
+                Some(binding) => binding.clone(),
+                None => {
+                    let binding = format!("cargoGitSource{}", git_source_bindings.len());
+                    git_source_bindings.insert(package.source.clone(), binding.clone());
+                    binding
+                }
+            };
             git_crates.push(GitCrateMaterialization {
                 source_binding: binding,
                 source_key: package.source.clone(),

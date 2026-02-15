@@ -120,6 +120,8 @@ nix-instantiate --eval ./nix-cargo-plan.nix
   checksums for crates.io registry packages.
 - Git sources are auto-materialized with `gitSourceHashes`; if missing, you can either pass
   `cargoHome` or set `allowImpureGitFetch = true`.
+- Repeated packages from the same git source share one fetch binding in emitted Nix (single fetch,
+  multiple checkout copy destinations).
 - Non-crates.io registry sources are not auto-materialized yet; for those, pass a pre-populated
   `cargoHome` override.
 - `gitSourceHashes` keys are full Cargo source strings (e.g.
