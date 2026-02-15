@@ -11,7 +11,7 @@
 
 - [x] Make build-script binary selection deterministic (no unordered `find | head` behavior).
 - [x] Stop suppressing hydration copy errors (`cp ... || true`), or gate suppression behind explicit diagnostics.
-- [ ] Tighten path-marker rewriting to path-aware substitutions (avoid broad substring rewrites).
+- [x] Tighten path-marker rewriting to path-aware substitutions (avoid broad substring rewrites).
 
 ## Priority 2 (maintainability)
 

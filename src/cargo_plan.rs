@@ -375,11 +375,63 @@ fn replace_prefix(value: String, from: &str, marker: &str) -> String {
     if from.is_empty() {
         return value;
     }
-    value.replace(from, marker)
+
+    let mut out = String::with_capacity(value.len());
+    let mut scan_start = 0usize;
+    while let Some(relative_index) = value[scan_start..].find(from) {
+        let index = scan_start + relative_index;
+        let end = index + from.len();
+        let prev = value[..index].chars().next_back();
+        let next = value[end..].chars().next();
+
+        if is_path_token_boundary_before(prev) && is_path_token_boundary_after(next) {
+            out.push_str(&value[scan_start..index]);
+            out.push_str(marker);
+            scan_start = end;
+            continue;
+        }
+
+        let advance = value[index..]
+            .chars()
+            .next()
+            .map(|ch| ch.len_utf8())
+            .unwrap_or(1);
+        out.push_str(&value[scan_start..index + advance]);
+        scan_start = index + advance;
+    }
+
+    out.push_str(&value[scan_start..]);
+    out
 }
 
 fn path_like(value: &str) -> bool {
     value.contains('/') || value.contains('\\')
+}
+
+fn is_path_token_boundary_before(ch: Option<char>) -> bool {
+    match ch {
+        None => true,
+        Some(ch) => {
+            ch.is_whitespace()
+                || matches!(
+                    ch,
+                    '"' | '\'' | '=' | ':' | ';' | ',' | '(' | '[' | '{'
+                )
+        }
+    }
+}
+
+fn is_path_token_boundary_after(ch: Option<char>) -> bool {
+    match ch {
+        None => true,
+        Some(ch) => {
+            ch.is_whitespace()
+                || matches!(
+                    ch,
+                    '"' | '\'' | '=' | ':' | ';' | ',' | ')' | ']' | '}' | '/' | '\\'
+                )
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
