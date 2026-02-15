@@ -105,6 +105,9 @@ nix-instantiate --eval ./nix-cargo-plan.nix
 #
 # 11) Typed mkDriver wiring check
 #     ./examples/typed-driver-check.sh
+#
+# 12) Strict planner failure behavior check (invalid workspace must fail plan/emit)
+#     ./examples/strict-planner-failure-check.sh
 ```
 
 ## Notes
