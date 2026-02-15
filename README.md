@@ -129,6 +129,10 @@ nix-instantiate --eval ./nix-cargo-plan.nix
 #     # optional modes:
 #     ./examples/incremental-benchmark-baseline-check.sh --engine nix-cargo
 #     ./examples/incremental-benchmark-baseline-check.sh --no-warmup
+#
+# 17) Multi-scenario incremental benchmark matrix
+#     ./examples/incremental-benchmark-matrix.sh
+#     ./examples/incremental-benchmark-matrix.sh --json
 ```
 
 ## Notes

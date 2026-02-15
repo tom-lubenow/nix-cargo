@@ -41,3 +41,5 @@
   cold/rebuild derivation-count and elapsed-time reporting.
 - [x] Add CI-friendly baseline snapshots for benchmark fixtures.
 - [ ] Add a real-world benchmark matrix harness and baseline snapshots.
+  - [x] Added local multi-scenario harness (`examples/incremental-benchmark-matrix.sh`).
+  - [ ] Add repo-backed scenario sets and baseline snapshots.
