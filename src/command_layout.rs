@@ -39,7 +39,7 @@ pub fn package_layout_by_key(plan: &Plan) -> HashMap<String, PackageLayoutRequir
             continue;
         }
 
-        if let Some(triple) = command_target_triple(&unit.command) {
+        if let Some(triple) = unit.target_triple.clone() {
             target_sets
                 .entry(unit.package_key.clone())
                 .or_default()
@@ -112,6 +112,7 @@ mod tests {
         compile_mode: &str,
         args: &[&str],
     ) -> Unit {
+        let command = command(args);
         Unit {
             unit_id: "unit".to_string(),
             package_key: package_key.to_string(),
@@ -120,8 +121,9 @@ mod tests {
             target_name: "pkg".to_string(),
             target_kind: target_kind.to_string(),
             compile_mode: compile_mode.to_string(),
+            target_triple: command_target_triple(&command),
             package_dependencies: Vec::new(),
-            command: command(args),
+            command,
         }
     }
 

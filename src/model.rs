@@ -45,6 +45,7 @@ pub struct Unit {
     pub target_name: String,
     pub target_kind: String,
     pub compile_mode: String,
+    pub target_triple: Option<String>,
     pub package_dependencies: Vec<String>,
     pub command: CommandSpec,
 }

@@ -16,6 +16,7 @@ use crate::model::{
     CommandEnv, CommandSpec, Plan, PlanPackage, Unit, PATH_MARKER_CARGO_BIN,
     PATH_MARKER_CARGO_HOME, PATH_MARKER_RUSTC, PATH_MARKER_SRC, PATH_MARKER_TARGET,
 };
+use crate::command_layout::command_target_triple;
 
 pub fn build_plan(
     manifest_path: Option<&Path>,
@@ -145,23 +146,29 @@ pub fn build_plan(
 
     let units = captured_units
         .into_iter()
-        .map(|captured| Unit {
-            unit_id: captured.unit_id,
-            package_key: captured.package_key.clone(),
-            package_name: captured.package_name,
-            package_version: package_versions
-                .get(captured.package_key.as_str())
-                .copied()
-                .unwrap_or("unknown")
-                .to_string(),
-            target_name: captured.target_name,
-            target_kind: captured.target_kind,
-            compile_mode: captured.compile_mode,
-            package_dependencies: package_dependencies
-                .get(captured.package_key.as_str())
-                .cloned()
-                .unwrap_or_default(),
-            command: normalize_command(captured.command, &rewrite_context),
+        .map(|captured| {
+            let normalized_command = normalize_command(captured.command, &rewrite_context);
+            let target_triple = command_target_triple(&normalized_command);
+
+            Unit {
+                unit_id: captured.unit_id,
+                package_key: captured.package_key.clone(),
+                package_name: captured.package_name,
+                package_version: package_versions
+                    .get(captured.package_key.as_str())
+                    .copied()
+                    .unwrap_or("unknown")
+                    .to_string(),
+                target_name: captured.target_name,
+                target_kind: captured.target_kind,
+                compile_mode: captured.compile_mode,
+                target_triple,
+                package_dependencies: package_dependencies
+                    .get(captured.package_key.as_str())
+                    .cloned()
+                    .unwrap_or_default(),
+                command: normalized_command,
+            }
         })
         .collect();
 
