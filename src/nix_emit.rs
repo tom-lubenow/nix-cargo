@@ -1,13 +1,11 @@
-use std::fmt::Write;
-
 use crate::cargo_home::build_cargo_home_materialization_plan;
-use crate::command_script::render_command_script;
 use crate::command_layout::package_layout_by_key;
 use crate::model::Plan;
 use crate::nix_string::{
-    nix_bool, nix_escape, nix_optional_string, nix_string_list,
+    nix_escape,
 };
 use crate::nix_cargo_home_emit::append_cargo_home_section;
+use crate::nix_crate_plan_emit::append_crate_plan_section;
 use crate::nix_header_emit::append_preamble;
 use crate::nix_public_attrs_emit::append_public_attrs_section;
 use crate::plan_package::{topologically_sorted_packages, units_by_package};
@@ -37,40 +35,13 @@ pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
     out.push_str("    mkdir -p \"$out\"\n");
     out.push_str("  '';\n");
 
-    out.push_str("  cratePlan = [\n");
-    for package in ordered_packages {
-        let package_units = units_by_package
-            .get(package.key.as_str())
-            .cloned()
-            .unwrap_or_default();
-        let layout = package_layout.get(package.key.as_str());
-        let target_triples = layout
-            .map(|layout| layout.target_triples.clone())
-            .unwrap_or_default();
-        let needs_host_artifacts = layout.map(|layout| layout.needs_host_artifacts).unwrap_or(false);
-        let package_source_prefixes = source_prefixes_by_package
-            .get(package.key.as_str())
-            .cloned()
-            .unwrap_or_default();
-        let command_script = render_command_script(&package_units);
-        let _ = writeln!(
-            out,
-            "    {{ key = \"{}\"; name = \"{}\"; version = \"{}\"; source = \"{}\"; lockChecksum = {}; cargoHomeRelManifestPath = {}; workspaceMember = {}; dependencies = {}; workspaceSourcePrefixes = {}; targetTriples = {}; needsHostArtifacts = {}; commandScript = \"{}\"; }}",
-            nix_escape(&package.key),
-            nix_escape(&package.name),
-            nix_escape(&package.version),
-            nix_escape(&package.source),
-            nix_optional_string(package.lock_checksum.as_deref()),
-            nix_optional_string(package.cargo_home_rel_manifest_path.as_deref()),
-            nix_bool(package.workspace_member),
-            nix_string_list(&package.dependencies),
-            nix_string_list(&package_source_prefixes),
-            nix_string_list(&target_triples),
-            nix_bool(needs_host_artifacts),
-            nix_escape(&command_script),
-        );
-    }
-    out.push_str("  ];\n");
+    append_crate_plan_section(
+        &mut out,
+        &ordered_packages,
+        &units_by_package,
+        &package_layout,
+        &source_prefixes_by_package,
+    );
 
     out.push_str(
         "  workspacePackageKeys = map (p: p.key) (builtins.filter (p: p.workspaceMember) cratePlan);\n\n",
