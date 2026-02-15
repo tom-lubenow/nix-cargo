@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};
-use cargo::core::compiler::{CompileMode, DefaultExecutor, Executor, UserIntent};
+use cargo::core::compiler::{CompileMode, DefaultExecutor, Executor, MessageFormat, UserIntent};
 use cargo::core::manifest::Target;
 use cargo::core::{PackageId, Verbosity};
 use cargo::ops::{self, CompileOptions};
@@ -126,6 +126,11 @@ pub fn build_plan(
     }
     options.build_config.keep_going = true;
     options.build_config.jobs = 1;
+    options.build_config.message_format = MessageFormat::Json {
+        render_diagnostics: true,
+        short: false,
+        ansi: false,
+    };
     options.build_config.dry_run = false;
     options.build_config.force_rebuild = true;
 
