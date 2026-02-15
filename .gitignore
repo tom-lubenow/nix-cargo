@@ -3,6 +3,7 @@
 /result
 /result-*
 /examples/**/nix-cargo-plan.nix
+/examples/**/nix-cargo-target-triple-plan.nix
 
 *.log
 *.tmp

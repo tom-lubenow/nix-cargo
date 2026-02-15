@@ -80,6 +80,11 @@ nix-instantiate --eval ./nix-cargo-plan.nix
 #    ./examples/target-layout-check.sh
 #    # optionally:
 #    NIX_CARGO_BIN=./target/debug/nix-cargo ./examples/target-layout-check.sh
+#
+# 10) Explicit target-triple propagation check
+#     ./examples/target-triple-check.sh
+#     # optionally:
+#     NIX_CARGO_BIN=./target/debug/nix-cargo ./examples/target-triple-check.sh
 ```
 
 ## Notes
@@ -103,6 +108,7 @@ nix-instantiate --eval ./nix-cargo-plan.nix
 - Dynamic refs are exposed as `dynamicPackages` and `workspaceDynamicPackages` (string outputs from
   `builtins.outputOf`).
 - Layout metadata is exposed as `packageLayouts` and `workspacePackageLayouts`.
+- Emitted plans expose the requested target as `targetTriple` (or `null` when unspecified).
 - A driver-like surface is exposed at `driver` with `targets.<package-id>.target` and
   `workspaceTargets`.
 - Current Nix emitter remains MVP quality: it seeds `CARGO_TARGET_DIR` from dependency outputs,

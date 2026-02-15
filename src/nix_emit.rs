@@ -45,6 +45,11 @@ pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
         "  planTargetDir = \"{}\";",
         nix_escape(&plan.target_dir)
     );
+    let _ = writeln!(
+        out,
+        "  planTargetTriple = {};",
+        nix_optional_string(plan.target_triple.as_deref())
+    );
     let _ = writeln!(out, "  markerSrc = \"{}\";", nix_escape(PATH_MARKER_SRC));
     let _ = writeln!(
         out,
@@ -417,6 +422,7 @@ pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
     out.push_str("  inherit packageDerivations dynamicPackageDerivations;\n");
     out.push_str("  packages = packageDerivations;\n");
     out.push_str("  dynamicPackages = dynamicPackages;\n");
+    out.push_str("  targetTriple = planTargetTriple;\n");
     out.push_str("  packageLayouts = packageLayouts;\n");
     out.push_str("  workspacePackageLayouts = workspacePackageLayouts;\n");
     out.push_str("  driver = {\n");
