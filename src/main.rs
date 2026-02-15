@@ -5,6 +5,7 @@ mod command_layout;
 mod model;
 mod nix_cargo_home_emit;
 mod nix_emit;
+mod nix_header_emit;
 mod nix_public_attrs_emit;
 mod nix_string;
 mod plan_package;
