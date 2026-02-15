@@ -11,13 +11,13 @@ use crate::model::{
 use crate::nix_string::{
     nix_bool, nix_escape, nix_optional_string, nix_string_list,
 };
-use crate::plan_package::{commands_by_package, topologically_sorted_packages};
+use crate::plan_package::{topologically_sorted_packages, units_by_package};
 use crate::source_scope::workspace_source_prefixes_by_package;
 
 pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
     let mut out = String::new();
     let ordered_packages = topologically_sorted_packages(plan);
-    let commands_by_package = commands_by_package(plan);
+    let units_by_package = units_by_package(plan);
     let package_layout = package_layout_by_key(plan);
     let source_prefixes_by_package = workspace_source_prefixes_by_package(plan);
     let cargo_home_plan = build_cargo_home_materialization_plan(plan);
@@ -162,7 +162,7 @@ pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
 
     out.push_str("  cratePlan = [\n");
     for package in ordered_packages {
-        let package_commands = commands_by_package
+        let package_units = units_by_package
             .get(package.key.as_str())
             .cloned()
             .unwrap_or_default();
@@ -175,7 +175,7 @@ pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
             .get(package.key.as_str())
             .cloned()
             .unwrap_or_default();
-        let command_script = render_command_script(&package_commands);
+        let command_script = render_command_script(&package_units);
         let _ = writeln!(
             out,
             "    {{ key = \"{}\"; name = \"{}\"; version = \"{}\"; source = \"{}\"; lockChecksum = {}; cargoHomeRelManifestPath = {}; workspaceMember = {}; dependencies = {}; workspaceSourcePrefixes = {}; targetTriples = {}; needsHostArtifacts = {}; commandScript = \"{}\"; }}",
@@ -309,6 +309,8 @@ pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
     out.push_str("            printf '%s' \"$value\"\n");
     out.push_str("          }\n");
     out.push_str("          run_cargo_cmd() {\n");
+    out.push_str("            local isBuildScriptCompile=\"$1\"\n");
+    out.push_str("            shift\n");
     out.push_str("            local cwdRaw=\"$1\"\n");
     out.push_str("            shift\n");
     out.push_str("            local programRaw=\"$1\"\n");
@@ -316,7 +318,7 @@ pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
     out.push_str("            local -n argsRef=\"$1\"\n");
     out.push_str("            shift\n");
     out.push_str("            local -n envRef=\"$1\"\n");
-    out.push_str("            local cwd program entry key value status outDir manifestDir runDir crateName outputPath commandOutDir buildScriptBinary\n");
+    out.push_str("            local cwd program entry key value status outDir manifestDir runDir outputPath commandOutDir buildScriptBinary\n");
     out.push_str("            local -a args=()\n");
     out.push_str("            local -a envArgs=()\n");
     out.push_str("            cwd=\"$(rewrite_value \"$cwdRaw\")\"\n");
@@ -396,17 +398,11 @@ pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
     out.push_str("            if [ -z \"$runDir\" ]; then\n");
     out.push_str("              runDir=\"$cwd\"\n");
     out.push_str("            fi\n");
-    out.push_str("            crateName=\"\"\n");
     out.push_str("            outputPath=\"\"\n");
     out.push_str("            commandOutDir=\"\"\n");
     out.push_str("            nextIndex=0\n");
     out.push_str("            while [ \"$nextIndex\" -lt \"''${#args[@]}\" ]; do\n");
     out.push_str("              entry=\"''${args[$nextIndex]}\"\n");
-    out.push_str("              if [ \"$entry\" = \"--crate-name\" ] && [ $((nextIndex + 1)) -lt \"''${#args[@]}\" ]; then\n");
-    out.push_str("                crateName=\"''${args[$((nextIndex + 1))]}\"\n");
-    out.push_str("                nextIndex=$((nextIndex + 2))\n");
-    out.push_str("                continue\n");
-    out.push_str("              fi\n");
     out.push_str("              if [ \"$entry\" = \"-o\" ] && [ $((nextIndex + 1)) -lt \"''${#args[@]}\" ]; then\n");
     out.push_str("                outputPath=\"''${args[$((nextIndex + 1))]}\"\n");
     out.push_str("                nextIndex=$((nextIndex + 2))\n");
@@ -428,7 +424,7 @@ pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
     out.push_str("            if [ -n \"$runDir\" ] && [ -n \"''${nixcargo_build_script_binaries[$runDir]:-}\" ]; then\n");
     out.push_str("              buildScriptBinary=\"''${nixcargo_build_script_binaries[$runDir]}\"\n");
     out.push_str("            fi\n");
-    out.push_str("            if [ -n \"$outDir\" ] && [ -n \"$buildScriptBinary\" ] && [ -x \"$buildScriptBinary\" ] && [ \"''${crateName}\" != \"build_script_build\" ] && [ -z \"''${nixcargo_build_script_runs[$outDir]+x}\" ]; then\n");
+    out.push_str("            if [ \"$isBuildScriptCompile\" -ne 1 ] && [ -n \"$outDir\" ] && [ -n \"$buildScriptBinary\" ] && [ -x \"$buildScriptBinary\" ] && [ -z \"''${nixcargo_build_script_runs[$outDir]+x}\" ]; then\n");
     out.push_str("              mkdir -p \"$outDir\"\n");
     out.push_str("              if [ -n \"$runDir\" ]; then\n");
     out.push_str("                (cd \"$runDir\" && env \"''${envArgs[@]}\" OUT_DIR=\"$outDir\" CARGO_MANIFEST_DIR=\"$runDir\" \"$buildScriptBinary\")\n");
@@ -442,7 +438,7 @@ pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
     out.push_str("            fi\n");
     out.push_str("            env \"''${envArgs[@]}\" \"$program\" \"''${args[@]}\"\n");
     out.push_str("            status=$?\n");
-    out.push_str("            if [ \"$status\" -eq 0 ] && [ \"''${crateName}\" = \"build_script_build\" ]; then\n");
+    out.push_str("            if [ \"$status\" -eq 0 ] && [ \"$isBuildScriptCompile\" -eq 1 ]; then\n");
     out.push_str("              if [ -z \"$outputPath\" ] && [ -n \"$commandOutDir\" ] && [ -d \"$commandOutDir\" ]; then\n");
     out.push_str("                outputPath=\"$(find \"$commandOutDir\" -maxdepth 1 -type f -name 'build_script_build*' -perm -u+x | LC_ALL=C sort | head -n1 || true)\"\n");
     out.push_str("              fi\n");

@@ -1,18 +1,18 @@
 use std::collections::HashMap;
 
-use crate::model::{CommandSpec, Plan, PlanPackage};
+use crate::model::{Plan, PlanPackage, Unit};
 
-pub(crate) fn commands_by_package(plan: &Plan) -> HashMap<String, Vec<CommandSpec>> {
+pub(crate) fn units_by_package(plan: &Plan) -> HashMap<String, Vec<Unit>> {
     plan.packages
         .iter()
         .map(|package| {
-            let commands = plan
+            let units = plan
                 .units
                 .iter()
                 .filter(|unit| unit.package_key == package.key)
-                .map(|unit| unit.command.clone())
+                .cloned()
                 .collect::<Vec<_>>();
-            (package.key.clone(), commands)
+            (package.key.clone(), units)
         })
         .collect()
 }
@@ -57,4 +57,3 @@ pub(crate) fn topologically_sorted_packages(plan: &Plan) -> Vec<&PlanPackage> {
 
     out
 }
-

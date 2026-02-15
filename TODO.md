@@ -5,7 +5,9 @@
 - [x] Make planner failure strict by default (no partial captured-unit plans on Cargo compile error).
 - [ ] Replace heuristic build-script replay with explicit, deterministic mapping from compile unit context to build-script binary execution.
   - [x] Added per-`runDir` build-script binary mapping to reduce global/fallback coupling.
+  - [x] Replay control now uses explicit unit metadata (`custom-build` compile units).
   - [x] Remove remaining fallback heuristics.
+  - [ ] Remove binary-path discovery fallback (`--out-dir` scan) by carrying resolved output path directly from planning.
 
 ## Priority 1 (correctness hardening)
 

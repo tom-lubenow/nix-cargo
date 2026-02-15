@@ -1,12 +1,14 @@
 use std::fmt::Write;
 
-use crate::model::CommandSpec;
+use crate::model::Unit;
 use crate::nix_string::{shell_array_literal, shell_single_quote};
 
-pub(crate) fn render_command_script(commands: &[CommandSpec]) -> String {
+pub(crate) fn render_command_script(units: &[Unit]) -> String {
     let mut script = String::new();
 
-    for (index, command) in commands.iter().enumerate() {
+    for (index, unit) in units.iter().enumerate() {
+        let command = &unit.command;
+        let is_build_script_compile = if is_build_script_compile(unit) { 1 } else { 0 };
         let args_var = format!("cmd_args_{index}");
         let env_var = format!("cmd_env_{index}");
         let cwd = command.cwd.clone().unwrap_or_default();
@@ -29,7 +31,7 @@ pub(crate) fn render_command_script(commands: &[CommandSpec]) -> String {
         );
         let _ = writeln!(
             script,
-            "  run_cargo_cmd {} {} {args_var} {env_var}",
+            "  run_cargo_cmd {is_build_script_compile} {} {} {args_var} {env_var}",
             shell_single_quote(&cwd),
             shell_single_quote(&command.program),
         );
@@ -40,3 +42,6 @@ pub(crate) fn render_command_script(commands: &[CommandSpec]) -> String {
     script
 }
 
+fn is_build_script_compile(unit: &Unit) -> bool {
+    unit.target_kind == "custom-build" && unit.compile_mode == "Build"
+}
