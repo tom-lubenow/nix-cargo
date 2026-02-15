@@ -171,4 +171,40 @@ mod tests {
             vec!["aarch64-unknown-linux-gnu".to_string()]
         );
     }
+
+    #[test]
+    fn unit_layout_keeps_pure_target_builds_off_host_layout() {
+        let package_key = "pkg v0.1.0 (/tmp/pkg)";
+        let plan = Plan {
+            workspace_root: "/tmp".to_string(),
+            manifest_path: "/tmp/Cargo.toml".to_string(),
+            cargo_home: "/tmp/ch".to_string(),
+            target_dir: "/tmp/target".to_string(),
+            packages: vec![PlanPackage {
+                key: package_key.to_string(),
+                name: "pkg".to_string(),
+                version: "0.1.0".to_string(),
+                source: "/tmp/pkg".to_string(),
+                manifest_path: "/tmp/pkg/Cargo.toml".to_string(),
+                cargo_home_rel_manifest_path: None,
+                lock_checksum: None,
+                workspace_member: true,
+                dependencies: Vec::new(),
+            }],
+            units: vec![unit_for(
+                package_key,
+                "bin",
+                "build",
+                &["--target", "x86_64-unknown-linux-gnu"],
+            )],
+        };
+
+        let layout = package_layout_by_key(&plan);
+        let package = layout.get(package_key).expect("layout exists");
+        assert!(!package.needs_host_artifacts);
+        assert_eq!(
+            package.target_triples,
+            vec!["x86_64-unknown-linux-gnu".to_string()]
+        );
+    }
 }
