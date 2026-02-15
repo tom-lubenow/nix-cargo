@@ -246,17 +246,17 @@ impl Executor for RecordingExecutor {
         on_stdout_line: &mut dyn FnMut(&str) -> CargoResult<()>,
         on_stderr_line: &mut dyn FnMut(&str) -> CargoResult<()>,
     ) -> CargoResult<()> {
-        let mut link_artifact = None;
+        let link_artifact = std::cell::RefCell::new(None::<String>);
         let result = if self.execute_commands {
             let mut on_stdout = |line: &str| -> CargoResult<()> {
                 if let Some(artifact) = parse_link_artifact(line) {
-                    link_artifact = Some(artifact);
+                    *link_artifact.borrow_mut() = Some(artifact);
                 }
                 on_stdout_line(line)
             };
             let mut on_stderr = |line: &str| -> CargoResult<()> {
                 if let Some(artifact) = parse_link_artifact(line) {
-                    link_artifact = Some(artifact);
+                    *link_artifact.borrow_mut() = Some(artifact);
                 }
                 on_stderr_line(line)
             };
@@ -277,7 +277,7 @@ impl Executor for RecordingExecutor {
             target_name: target.name().to_string(),
             target_kind: target.kind().description().to_string(),
             compile_mode: format!("{mode:?}"),
-            link_artifact,
+            link_artifact: link_artifact.into_inner(),
             command: capture_command(cmd),
         });
         drop(captured);
