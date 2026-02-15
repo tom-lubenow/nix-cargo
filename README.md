@@ -55,6 +55,18 @@ nix-instantiate --eval ./nix-cargo-plan.nix
 #    nix build .#driver-default
 #    nix eval --raw .#driver-default.passthru.target
 #
+# Example typed mkDriver usage:
+#   nix eval --raw --expr '
+#     let
+#       flake = builtins.getFlake (toString ./.);
+#       drv = flake.legacyPackages.${builtins.currentSystem}.mkDriver {
+#         src = ./examples/target-layout-workspace;
+#         targetTriple = "x86_64-unknown-linux-gnu";
+#         target = "app";
+#       };
+#     in drv.passthru.target
+#   '
+#
 # Optional for git dependencies with auto cargoHome:
 #   - deterministic: pass gitSourceHashes = { "<git+source>" = "sha256-..."; ...; }
 #   - fallback: set allowImpureGitFetch = true
