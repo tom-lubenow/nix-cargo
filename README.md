@@ -58,6 +58,9 @@ nix-instantiate --eval ./nix-cargo-plan.nix
 #    ./examples/proc-macro-check.sh
 #    # optionally:
 #    NIX_CARGO_BIN=./target/debug/nix-cargo ./examples/proc-macro-check.sh
+#
+# 8) Run both checks
+#    ./examples/check-all.sh
 ```
 
 ## Notes
