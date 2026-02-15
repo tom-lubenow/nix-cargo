@@ -112,6 +112,8 @@ nix-instantiate --eval ./nix-cargo-plan.nix
   intentionally tied to current Cargo internals.
 - The current planner executes Cargo build jobs while recording Cargo executor commands to ensure
   complete command capture (including build-script-sensitive crates).
+- Planner execution is serialized (`jobs = 1`) so captured command order stays deterministic for
+  reproducible emitted Nix plans.
 - The emitted expression accepts `cargoHome` (default `null`) and rewrites captured absolute paths
   via deterministic markers at replay time.
 - With `cargoHome = null`, emitted Nix builds a deterministic cargo home from `Cargo.lock`

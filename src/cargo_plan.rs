@@ -125,6 +125,7 @@ pub fn build_plan(
             .with_context(|| format!("failed to resolve target triple `{target_triple}`"))?;
     }
     options.build_config.keep_going = true;
+    options.build_config.jobs = 1;
     options.build_config.dry_run = false;
     options.build_config.force_rebuild = true;
 
