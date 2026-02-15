@@ -111,6 +111,8 @@ plannerDrv.overrideAttrs (old: {
     // {
       ref = plannerDrv;
       targetDrvPath = plannedDrvPath;
+      targetSelection = target;
+      targetTriple = targetTriple;
       target =
         builtins.outputOf
           (builtins.unsafeDiscardOutputDependency (builtins.storePath plannedDrvPath))

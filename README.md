@@ -64,6 +64,7 @@ nix-instantiate --eval ./nix-cargo-plan.nix
 #   - `target = "<crate-name>"` works if the crate name is unique in the resolved graph
 # Driver planning target:
 #   - `targetTriple = "aarch64-unknown-linux-gnu"` forwards to `nix-cargo emit --target-triple ...`
+#   - passthru metadata includes `targetSelection` and `targetTriple`
 
 # 6) Minimal workspace integration check
 #    ./examples/integration-check.sh
