@@ -9,7 +9,7 @@ STATUS="$(
   nix eval --impure --raw --expr "
 let
   flake = builtins.getFlake ${ROOT_DIR};
-  drv = flake.legacyPackages.${builtins.currentSystem}.mkDriver {
+  drv = flake.legacyPackages.\${builtins.currentSystem}.mkDriver {
     src = ${ROOT_DIR}/examples/target-layout-workspace;
     targetTriple = \"${TARGET_TRIPLE}\";
     target = \"${TARGET_NAME}\";
@@ -28,4 +28,3 @@ if [ "${STATUS}" != "ok" ]; then
 fi
 
 echo "typed-driver-check: ok"
-
