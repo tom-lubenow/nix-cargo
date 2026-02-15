@@ -418,7 +418,11 @@ pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
     out.push_str("            done\n");
     out.push_str("            if [ -n \"$outDir\" ] && [ -n \"''${nixcargo_last_build_script_binary:-}\" ] && [ -x \"''${nixcargo_last_build_script_binary}\" ] && [ \"''${crateName}\" != \"build_script_build\" ] && [ -z \"''${nixcargo_build_script_runs[$outDir]+x}\" ]; then\n");
     out.push_str("              mkdir -p \"$outDir\"\n");
-    out.push_str("              env \"''${envArgs[@]}\" OUT_DIR=\"$outDir\" CARGO_MANIFEST_DIR=\"$cwd\" \"''${nixcargo_last_build_script_binary}\"\n");
+    out.push_str("              if [ -n \"$cwd\" ]; then\n");
+    out.push_str("                (cd \"$cwd\" && env \"''${envArgs[@]}\" OUT_DIR=\"$outDir\" CARGO_MANIFEST_DIR=\"$cwd\" \"''${nixcargo_last_build_script_binary}\")\n");
+    out.push_str("              else\n");
+    out.push_str("                env \"''${envArgs[@]}\" OUT_DIR=\"$outDir\" CARGO_MANIFEST_DIR=\"$cwd\" \"''${nixcargo_last_build_script_binary}\"\n");
+    out.push_str("              fi\n");
     out.push_str("              nixcargo_build_script_runs[$outDir]=1\n");
     out.push_str("            fi\n");
     out.push_str("            if [ -n \"$cwd\" ]; then\n");
