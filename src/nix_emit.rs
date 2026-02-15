@@ -268,7 +268,6 @@ pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
     out.push_str("          needsHostArtifacts=${if packageDef.needsHostArtifacts then \"1\" else \"0\"}\n");
     out.push_str("          declare -A nixcargo_build_script_runs=()\n");
     out.push_str("          declare -A nixcargo_build_script_binaries=()\n");
-    out.push_str("          nixcargo_last_build_script_binary=\"\"\n");
     out.push_str("          for targetTriple in \"''${targetTriples[@]}\"; do\n");
     out.push_str("            mkdir -p \"$CARGO_TARGET_DIR/$targetTriple/$buildMode/deps\"\n");
     out.push_str("            mkdir -p \"$CARGO_TARGET_DIR/$targetTriple/$buildMode/build\"\n");
@@ -428,8 +427,6 @@ pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
     out.push_str("            buildScriptBinary=\"\"\n");
     out.push_str("            if [ -n \"$runDir\" ] && [ -n \"''${nixcargo_build_script_binaries[$runDir]:-}\" ]; then\n");
     out.push_str("              buildScriptBinary=\"''${nixcargo_build_script_binaries[$runDir]}\"\n");
-    out.push_str("            elif [ -n \"''${nixcargo_last_build_script_binary:-}\" ]; then\n");
-    out.push_str("              buildScriptBinary=\"''${nixcargo_last_build_script_binary}\"\n");
     out.push_str("            fi\n");
     out.push_str("            if [ -n \"$outDir\" ] && [ -n \"$buildScriptBinary\" ] && [ -x \"$buildScriptBinary\" ] && [ \"''${crateName}\" != \"build_script_build\" ] && [ -z \"''${nixcargo_build_script_runs[$outDir]+x}\" ]; then\n");
     out.push_str("              mkdir -p \"$outDir\"\n");
@@ -450,7 +447,6 @@ pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
     out.push_str("                outputPath=\"$(find \"$commandOutDir\" -maxdepth 1 -type f -name 'build_script_build*' -perm -u+x | LC_ALL=C sort | head -n1 || true)\"\n");
     out.push_str("              fi\n");
     out.push_str("              if [ -n \"$outputPath\" ] && [ -x \"$outputPath\" ]; then\n");
-    out.push_str("                nixcargo_last_build_script_binary=\"$outputPath\"\n");
     out.push_str("                if [ -n \"$runDir\" ]; then\n");
     out.push_str("                  nixcargo_build_script_binaries[$runDir]=\"$outputPath\"\n");
     out.push_str("                fi\n");
