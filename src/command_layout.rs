@@ -61,21 +61,6 @@ pub fn package_layout_by_key(plan: &Plan) -> HashMap<String, PackageLayoutRequir
         .collect()
 }
 
-pub fn package_target_triples(commands: &[CommandSpec]) -> Vec<String> {
-    commands
-        .iter()
-        .filter_map(command_target_triple)
-        .collect::<BTreeSet<_>>()
-        .into_iter()
-        .collect()
-}
-
-pub fn package_needs_host_artifacts(commands: &[CommandSpec]) -> bool {
-    commands
-        .iter()
-        .any(|command| command_target_triple(command).is_none())
-}
-
 pub fn command_target_triple(command: &CommandSpec) -> Option<String> {
     let mut args = command.args.iter();
     while let Some(arg) = args.next() {
@@ -101,10 +86,7 @@ pub fn command_target_triple(command: &CommandSpec) -> Option<String> {
 mod tests {
     use crate::model::{CommandEnv, CommandSpec, Plan, PlanPackage, Unit};
 
-    use super::{
-        command_target_triple, package_layout_by_key, package_needs_host_artifacts,
-        package_target_triples,
-    };
+    use super::{command_target_triple, package_layout_by_key};
 
     fn command(args: &[&str]) -> CommandSpec {
         CommandSpec {
@@ -144,23 +126,6 @@ mod tests {
     fn parses_split_target_arg() {
         let triple = command_target_triple(&command(&["--target", "x86_64-unknown-linux-gnu"]));
         assert_eq!(triple.as_deref(), Some("x86_64-unknown-linux-gnu"));
-    }
-
-    #[test]
-    fn computes_target_set_and_host_requirement() {
-        let commands = vec![
-            command(&["--crate-name", "host-tool"]),
-            command(&["--target", "x86_64-unknown-linux-gnu"]),
-            command(&["--target=aarch64-unknown-linux-gnu"]),
-        ];
-        assert_eq!(
-            package_target_triples(&commands),
-            vec![
-                "aarch64-unknown-linux-gnu".to_string(),
-                "x86_64-unknown-linux-gnu".to_string()
-            ]
-        );
-        assert!(package_needs_host_artifacts(&commands));
     }
 
     #[test]
