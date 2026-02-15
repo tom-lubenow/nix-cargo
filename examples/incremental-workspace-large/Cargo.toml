@@ -1,0 +1,16 @@
+[workspace]
+members = [
+  "crates/app",
+  "crates/core",
+  "crates/util",
+  "crates/mid_a",
+  "crates/mid_b",
+  "crates/mid_c",
+  "crates/leaf_a",
+  "crates/leaf_b",
+  "crates/leaf_c",
+  "crates/leaf_d",
+  "crates/leaf_e",
+  "crates/leaf_f",
+]
+resolver = "2"

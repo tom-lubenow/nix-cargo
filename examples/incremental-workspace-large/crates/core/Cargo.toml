@@ -1,0 +1,9 @@
+[package]
+name = "core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+mid_a = { path = "../mid_a" }
+mid_b = { path = "../mid_b" }
+mid_c = { path = "../mid_c" }

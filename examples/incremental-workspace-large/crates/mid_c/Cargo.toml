@@ -1,0 +1,8 @@
+[package]
+name = "mid_c"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+leaf_b = { path = "../leaf_b" }
+leaf_c = { path = "../leaf_c" }
