@@ -3,6 +3,7 @@ mod cargo_home;
 mod command_script;
 mod command_layout;
 mod model;
+mod nix_cargo_home_emit;
 mod nix_emit;
 mod nix_string;
 mod plan_package;

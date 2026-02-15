@@ -18,6 +18,7 @@
 ## Priority 2 (maintainability)
 
 - [ ] Continue splitting `nix_emit.rs` into typed data modeling + renderer modules.
+  - [x] Extracted cargo-home emission section into `src/nix_cargo_home_emit.rs`.
 - [ ] Add focused regression tests for:
   - [ ] strict planner failure behavior
   - [ ] multi-build-script workspaces
