@@ -5,6 +5,7 @@ mod command_layout;
 mod model;
 mod nix_emit;
 mod nix_string;
+mod plan_package;
 mod source_scope;
 mod workspace;
 
