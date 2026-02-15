@@ -133,6 +133,8 @@ nix-instantiate --eval ./nix-cargo-plan.nix
 # 17) Multi-scenario incremental benchmark matrix
 #     ./examples/incremental-benchmark-matrix.sh
 #     ./examples/incremental-benchmark-matrix.sh --json
+#     ./examples/incremental-benchmark-matrix.sh \
+#       --scenarios-file ./examples/benchmark-matrix-scenarios/large.tsv
 ```
 
 ## Notes

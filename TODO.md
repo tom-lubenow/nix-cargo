@@ -42,4 +42,5 @@
 - [x] Add CI-friendly baseline snapshots for benchmark fixtures.
 - [ ] Add a real-world benchmark matrix harness and baseline snapshots.
   - [x] Added local multi-scenario harness (`examples/incremental-benchmark-matrix.sh`).
+  - [x] Added scenario-file format and reusable scenario set (`examples/benchmark-matrix-scenarios/large.tsv`).
   - [ ] Add repo-backed scenario sets and baseline snapshots.

@@ -16,13 +16,16 @@ usage() {
   cat <<'EOF'
 Usage: incremental-benchmark-matrix.sh [options]
 
-Run a matrix of incremental benchmark scenarios against one workspace.
+Run a matrix of incremental benchmark scenarios.
 
 Options:
   --engine <nix-cargo|cargo2nix|both>  Benchmark engine(s). Default: both
-  --workspace <path>                   Workspace to benchmark. Default: incremental-workspace-large
-  --target-crate <name>                Target workspace crate. Default: app
-  --scenarios-file <path>              Scenario TSV file: "<name>\t<mutation-file>" per line
+  --workspace <path>                   Default workspace. Default: incremental-workspace-large
+  --target-crate <name>                Default target crate. Default: app
+  --scenarios-file <path>              Scenario TSV file.
+                                       Supported row formats:
+                                       - "<name>\t<mutation-file>"
+                                       - "<name>\t<workspace>\t<target-crate>\t<mutation-file>"
   --json                               Emit JSON
   --help                               Show this help text.
 
@@ -79,43 +82,57 @@ trap 'rm -rf "${TMP_DIR}"' EXIT
 
 run_scenario() {
   local name="$1"
-  local mutation_file="$2"
+  local workspace_dir="$2"
+  local target_crate="$3"
+  local mutation_file="$4"
+  if [ "${workspace_dir}" != /* ]; then
+    workspace_dir="${ROOT_DIR}/${workspace_dir}"
+  fi
   local result_json
   result_json="$(
     "${ROOT_DIR}/examples/incremental-benchmark.sh" \
       --engine "${ENGINE}" \
-      --workspace "${WORKSPACE_DIR}" \
-      --target-crate "${TARGET_CRATE}" \
+      --workspace "${workspace_dir}" \
+      --target-crate "${target_crate}" \
       --mutation-file "${mutation_file}" \
       --json
   )"
   printf '%s\n' "${result_json}" \
-    | jq -c --arg scenario "${name}" --arg mutation "${mutation_file}" '.[] | . + { scenario: $scenario, mutation_file: $mutation }' \
+    | jq -c \
+      --arg scenario "${name}" \
+      --arg workspace "${workspace_dir}" \
+      --arg target_crate "${target_crate}" \
+      --arg mutation "${mutation_file}" \
+      '.[] | . + { scenario: $scenario, workspace: $workspace, target_crate: $target_crate, mutation_file: $mutation }' \
     >> "${RESULTS_FILE}"
 }
 
 if [ -n "${SCENARIOS_FILE}" ]; then
-  while IFS=$'\t' read -r name mutation_file; do
-    if [ -z "${name}" ] || [ -z "${mutation_file}" ]; then
+  while IFS=$'\t' read -r c1 c2 c3 c4; do
+    if [ -z "${c1}" ]; then
       continue
     fi
-    run_scenario "${name}" "${mutation_file}"
+    if [ -n "${c4}" ]; then
+      run_scenario "${c1}" "${c2}" "${c3}" "${c4}"
+    elif [ -n "${c2}" ]; then
+      run_scenario "${c1}" "${WORKSPACE_DIR}" "${TARGET_CRATE}" "${c2}"
+    fi
   done < "${SCENARIOS_FILE}"
 else
-  run_scenario "leaf_a_edit" "crates/leaf_a/src/lib.rs"
-  run_scenario "mid_a_edit" "crates/mid_a/src/lib.rs"
-  run_scenario "core_edit" "crates/core/src/lib.rs"
-  run_scenario "util_edit" "crates/util/src/lib.rs"
+  run_scenario "leaf_a_edit" "${WORKSPACE_DIR}" "${TARGET_CRATE}" "crates/leaf_a/src/lib.rs"
+  run_scenario "mid_a_edit" "${WORKSPACE_DIR}" "${TARGET_CRATE}" "crates/mid_a/src/lib.rs"
+  run_scenario "core_edit" "${WORKSPACE_DIR}" "${TARGET_CRATE}" "crates/core/src/lib.rs"
+  run_scenario "util_edit" "${WORKSPACE_DIR}" "${TARGET_CRATE}" "crates/util/src/lib.rs"
 fi
 
 if [ "${JSON_OUTPUT}" -eq 1 ]; then
   jq -s 'sort_by(.scenario, .engine, .phase)' "${RESULTS_FILE}"
 else
-  printf '%-12s %-12s %-8s %-12s %-10s %-32s\n' \
-    "scenario" "engine" "phase" "derivations" "elapsed_ms" "mutation_file"
-  jq -r 'sort_by(.scenario, .engine, .phase)[] | [.scenario, .engine, .phase, (.derivations|tostring), (.elapsed_ms|tostring), .mutation_file] | @tsv' "${RESULTS_FILE}" \
-    | while IFS=$'\t' read -r scenario engine phase derivations elapsed_ms mutation_file; do
-        printf '%-12s %-12s %-8s %-12s %-10s %-32s\n' \
-          "${scenario}" "${engine}" "${phase}" "${derivations}" "${elapsed_ms}" "${mutation_file}"
+  printf '%-12s %-12s %-8s %-12s %-10s %-22s %-32s\n' \
+    "scenario" "engine" "phase" "derivations" "elapsed_ms" "target_crate" "mutation_file"
+  jq -r 'sort_by(.scenario, .engine, .phase)[] | [.scenario, .engine, .phase, (.derivations|tostring), (.elapsed_ms|tostring), .target_crate, .mutation_file] | @tsv' "${RESULTS_FILE}" \
+    | while IFS=$'\t' read -r scenario engine phase derivations elapsed_ms target_crate mutation_file; do
+        printf '%-12s %-12s %-8s %-12s %-10s %-22s %-32s\n' \
+          "${scenario}" "${engine}" "${phase}" "${derivations}" "${elapsed_ms}" "${target_crate}" "${mutation_file}"
       done
 fi
