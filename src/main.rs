@@ -3,6 +3,7 @@ mod cargo_home;
 mod command_layout;
 mod model;
 mod nix_emit;
+mod nix_string;
 mod source_scope;
 mod workspace;
 

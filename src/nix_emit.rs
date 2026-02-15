@@ -7,6 +7,10 @@ use crate::model::{
     CommandSpec, Plan, PlanPackage, PATH_MARKER_CARGO_BIN, PATH_MARKER_CARGO_HOME,
     PATH_MARKER_RUSTC, PATH_MARKER_SRC, PATH_MARKER_TARGET,
 };
+use crate::nix_string::{
+    nix_bool, nix_escape, nix_optional_string, nix_string_list, shell_array_literal,
+    shell_single_quote,
+};
 use crate::source_scope::workspace_source_prefixes_by_package;
 
 pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
@@ -547,51 +551,4 @@ fn render_command_script(commands: &[CommandSpec]) -> String {
     }
 
     script
-}
-
-fn shell_array_literal(values: &[String]) -> String {
-    if values.is_empty() {
-        return String::new();
-    }
-
-    values
-        .iter()
-        .map(|value| shell_single_quote(value))
-        .collect::<Vec<_>>()
-        .join(" ")
-}
-
-fn nix_string_list(values: &[String]) -> String {
-    if values.is_empty() {
-        return String::from("[ ]");
-    }
-
-    let mut result = String::from("[");
-    for value in values {
-        let _ = write!(result, " \"{}\"", nix_escape(value));
-    }
-    result.push_str(" ]");
-    result
-}
-
-fn nix_optional_string(value: Option<&str>) -> String {
-    value
-        .map(|value| format!("\"{}\"", nix_escape(value)))
-        .unwrap_or_else(|| String::from("null"))
-}
-
-fn nix_bool(value: bool) -> &'static str {
-    if value { "true" } else { "false" }
-}
-
-fn shell_single_quote(value: &str) -> String {
-    format!("'{}'", value.replace('\'', "'\"'\"'"))
-}
-
-fn nix_escape(value: &str) -> String {
-    value
-        .replace('\\', "\\\\")
-        .replace('"', "\\\"")
-        .replace('$', "\\$")
-        .replace('\n', "\\n")
 }
