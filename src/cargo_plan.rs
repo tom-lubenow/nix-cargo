@@ -493,3 +493,32 @@ fn lock_source_for_lookup(source: &str) -> Option<String> {
     }
     None
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{replace_prefix, PATH_MARKER_TARGET};
+
+    #[test]
+    fn replace_prefix_rewrites_path_token_with_boundaries() {
+        let value = "OUT_DIR=/tmp/work/target/debug/build/pkg/out".to_string();
+        let rewritten = replace_prefix(value, "/tmp/work/target", PATH_MARKER_TARGET);
+        assert_eq!(
+            rewritten,
+            "OUT_DIR=@@NIXCARGO_TARGET@@/debug/build/pkg/out".to_string()
+        );
+    }
+
+    #[test]
+    fn replace_prefix_does_not_rewrite_partial_path_segment() {
+        let value = "OUT_DIR=/tmp/work/targeted/debug".to_string();
+        let rewritten = replace_prefix(value, "/tmp/work/target", PATH_MARKER_TARGET);
+        assert_eq!(rewritten, value);
+    }
+
+    #[test]
+    fn replace_prefix_rewrites_quoted_path() {
+        let value = "\"/tmp/work/target/debug\"".to_string();
+        let rewritten = replace_prefix(value, "/tmp/work/target", PATH_MARKER_TARGET);
+        assert_eq!(rewritten, "\"@@NIXCARGO_TARGET@@/debug\"".to_string());
+    }
+}

@@ -22,8 +22,8 @@
 - [ ] Add focused regression tests for:
   - [x] strict planner failure behavior
   - [x] multi-build-script workspaces
-  - [ ] cross-target + host-target mixed layouts
-  - [ ] marker-rewrite edge cases
+  - [x] cross-target + host-target mixed layouts
+  - [x] marker-rewrite edge cases
 
 ## In-progress now
 
