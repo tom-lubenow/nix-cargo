@@ -237,3 +237,54 @@ fn hex_nibble(value: u8) -> Option<u8> {
         _ => None,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::model::{Plan, PlanPackage};
+
+    use super::build_cargo_home_materialization_plan;
+
+    fn git_package(key: &str, rel_manifest_path: &str) -> PlanPackage {
+        PlanPackage {
+            key: key.to_string(),
+            name: key.to_string(),
+            version: "0.1.0".to_string(),
+            source: "git+https://example.com/repo?rev=deadbeef#deadbeef".to_string(),
+            manifest_path: format!("/tmp/{key}/Cargo.toml"),
+            cargo_home_rel_manifest_path: Some(rel_manifest_path.to_string()),
+            lock_checksum: None,
+            workspace_member: false,
+            dependencies: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn deduplicates_git_source_bindings() {
+        let plan = Plan {
+            workspace_root: "/tmp/ws".to_string(),
+            manifest_path: "/tmp/ws/Cargo.toml".to_string(),
+            cargo_home: "/tmp/ch".to_string(),
+            target_dir: "/tmp/ws/target".to_string(),
+            target_triple: None,
+            packages: vec![
+                git_package(
+                    "git-a",
+                    "git/checkouts/repo-abcd1234/11111111/crate-a/Cargo.toml",
+                ),
+                git_package(
+                    "git-b",
+                    "git/checkouts/repo-abcd1234/11111111/crate-b/Cargo.toml",
+                ),
+            ],
+            units: Vec::new(),
+        };
+
+        let materialization = build_cargo_home_materialization_plan(&plan);
+        assert_eq!(materialization.git_crates.len(), 2);
+        assert_eq!(
+            materialization.git_crates[0].source_binding,
+            materialization.git_crates[1].source_binding
+        );
+        assert_eq!(materialization.unsupported_package_keys.len(), 0);
+    }
+}
