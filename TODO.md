@@ -21,7 +21,7 @@
   - [x] Extracted cargo-home emission section into `src/nix_cargo_home_emit.rs`.
 - [ ] Add focused regression tests for:
   - [x] strict planner failure behavior
-  - [ ] multi-build-script workspaces
+  - [x] multi-build-script workspaces
   - [ ] cross-target + host-target mixed layouts
   - [ ] marker-rewrite edge cases
 

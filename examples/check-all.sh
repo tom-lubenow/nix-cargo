@@ -9,5 +9,6 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 "${ROOT_DIR}/examples/target-triple-check.sh"
 "${ROOT_DIR}/examples/typed-driver-check.sh"
 "${ROOT_DIR}/examples/strict-planner-failure-check.sh"
+"${ROOT_DIR}/examples/multi-build-script-check.sh"
 
 echo "check-all: ok"

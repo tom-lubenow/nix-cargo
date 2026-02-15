@@ -108,6 +108,9 @@ nix-instantiate --eval ./nix-cargo-plan.nix
 #
 # 12) Strict planner failure behavior check (invalid workspace must fail plan/emit)
 #     ./examples/strict-planner-failure-check.sh
+#
+# 13) Multi build-script workspace replay check
+#     ./examples/multi-build-script-check.sh
 ```
 
 ## Notes
