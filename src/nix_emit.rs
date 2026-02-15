@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 use std::fmt::Write;
 
-use crate::cargo_home::{build_cargo_home_materialization_plan, CargoHomeMaterializationPlan};
+use crate::cargo_home::build_cargo_home_materialization_plan;
 use crate::command_script::render_command_script;
 use crate::command_layout::package_layout_by_key;
 use crate::model::{
