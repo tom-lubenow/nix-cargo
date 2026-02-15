@@ -101,6 +101,9 @@ nix-instantiate --eval ./nix-cargo-plan.nix
 #     ./examples/target-triple-check.sh
 #     # optionally:
 #     NIX_CARGO_BIN=./target/debug/nix-cargo ./examples/target-triple-check.sh
+#
+# 11) Typed mkDriver wiring check
+#     ./examples/typed-driver-check.sh
 ```
 
 ## Notes

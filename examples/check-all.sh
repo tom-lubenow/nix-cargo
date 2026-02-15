@@ -7,5 +7,6 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 "${ROOT_DIR}/examples/proc-macro-check.sh"
 "${ROOT_DIR}/examples/target-layout-check.sh"
 "${ROOT_DIR}/examples/target-triple-check.sh"
+"${ROOT_DIR}/examples/typed-driver-check.sh"
 
 echo "check-all: ok"
