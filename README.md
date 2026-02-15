@@ -119,6 +119,10 @@ nix-instantiate --eval ./nix-cargo-plan.nix
 #     CARGO2NIX_SETUP_CMD='nix run github:cargo2nix/cargo2nix -- --stdout > Cargo.nix' \
 #     CARGO2NIX_BUILD_CMD='nix build --no-link --impure --expr "let c2n = builtins.getFlake \"github:cargo2nix/cargo2nix\"; pkgs = import c2n.inputs.nixpkgs { system = builtins.currentSystem; overlays = [ c2n.overlays.default ]; }; rustPkgs = pkgs.rustBuilder.makePackageSet { rustVersion = \"1.83.0\"; packageFun = import ./Cargo.nix; }; in rustPkgs.workspace.app {}"' \
 #     ./examples/incremental-benchmark.sh --engine cargo2nix
+#
+# 15) Large-DAG incremental benchmark target (defaults to --engine both)
+#     ./examples/incremental-benchmark-large.sh
+#     ./examples/incremental-benchmark-large.sh --json
 ```
 
 ## Notes
