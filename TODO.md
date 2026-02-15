@@ -18,7 +18,7 @@
 
 ## Priority 2 (maintainability)
 
-- [ ] Continue splitting `nix_emit.rs` into typed data modeling + renderer modules.
+- [x] Continue splitting `nix_emit.rs` into typed data modeling + renderer modules.
   - [x] Extracted cargo-home emission section into `src/nix_cargo_home_emit.rs`.
   - [x] Extracted preamble/header emission into `src/nix_header_emit.rs`.
   - [x] Extracted public-attrset emission section into `src/nix_public_attrs_emit.rs`.
@@ -33,10 +33,11 @@
 
 ## In-progress now
 
-- [ ] Continue splitting `nix_emit.rs` into typed data modeling + renderer modules.
+- [ ] Add a real-world benchmark matrix harness (multiple edit classes) and capture snapshots.
 
 ## Benchmarking
 
 - [x] Add an incrementalism benchmark harness (`examples/incremental-benchmark.sh`) with
   cold/rebuild derivation-count and elapsed-time reporting.
 - [x] Add CI-friendly baseline snapshots for benchmark fixtures.
+- [ ] Add a real-world benchmark matrix harness and baseline snapshots.
