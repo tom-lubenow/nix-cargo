@@ -115,9 +115,9 @@ nix-instantiate --eval ./nix-cargo-plan.nix
 # 14) Incrementalism benchmark harness
 #     ./examples/incremental-benchmark.sh --engine nix-cargo
 #     ./examples/incremental-benchmark.sh --engine both
-#     # cargo2nix adapter mode:
-#     CARGO2NIX_SETUP_CMD='cargo2nix > Cargo.nix' \
-#     CARGO2NIX_BUILD_CMD='nix build --no-link --impure --expr "let pkgs = import <nixpkgs> {}; in (import ./Cargo.nix { inherit pkgs; }).rootCrate.build"' \
+#     # cargo2nix adapter mode (cargo2nix 0.12.x):
+#     CARGO2NIX_SETUP_CMD='nix run github:cargo2nix/cargo2nix -- --stdout > Cargo.nix' \
+#     CARGO2NIX_BUILD_CMD='nix build --no-link --impure --expr "let c2n = builtins.getFlake \"github:cargo2nix/cargo2nix\"; pkgs = import c2n.inputs.nixpkgs { system = builtins.currentSystem; overlays = [ c2n.overlays.default ]; }; rustPkgs = pkgs.rustBuilder.makePackageSet { rustVersion = \"1.83.0\"; packageFun = import ./Cargo.nix; }; in rustPkgs.workspace.app {}"' \
 #     ./examples/incremental-benchmark.sh --engine cargo2nix
 ```
 
