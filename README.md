@@ -145,11 +145,13 @@ nix-instantiate --eval ./nix-cargo-plan.nix
 #
 # 19) Flake/CI entrypoints
 #     nix run .#benchmark-ci-checks
+#     NIX_CARGO_ENABLE_CARGO2NIX_LANE=1 nix run .#benchmark-ci-checks-cargo2nix
 #     nix run .#benchmark-baseline-check
 #     nix run .#benchmark-matrix-baseline-check
 #     nix flake check
 #     # `nix flake check` validates baseline/scenario schemas;
 #     # runnable benchmark checks are exposed as flake apps above.
+#     # cargo2nix lane is opt-in to keep default CI fast.
 ```
 
 ## Notes

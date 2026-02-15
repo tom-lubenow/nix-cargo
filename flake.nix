@@ -56,6 +56,19 @@
             ${src}/examples/incremental-benchmark-matrix-baseline-check.sh --engine nix-cargo --no-warmup
           '';
         };
+        benchmarkCiChecksCargo2nix = pkgs.writeShellApplication {
+          name = "benchmark-ci-checks-cargo2nix";
+          runtimeInputs = [ pkgs.jq pkgs.nix self.packages.${system}.default ];
+          text = ''
+            if [ "''${NIX_CARGO_ENABLE_CARGO2NIX_LANE:-0}" != "1" ]; then
+              echo "benchmark-ci-checks-cargo2nix: skipped (set NIX_CARGO_ENABLE_CARGO2NIX_LANE=1 to enable)"
+              exit 0
+            fi
+            export NIX_CARGO_BIN="${self.packages.${system}.default}/bin/nix-cargo"
+            ${src}/examples/incremental-benchmark-baseline-check.sh --engine both --no-warmup
+            ${src}/examples/incremental-benchmark-matrix-baseline-check.sh --engine both --no-warmup
+          '';
+        };
       in {
         packages = {
           default = craneLib.buildPackage (common // { inherit cargoArtifacts; });
@@ -67,6 +80,7 @@
           benchmark-baseline-check = benchmarkBaselineCheck;
           benchmark-matrix-baseline-check = benchmarkMatrixBaselineCheck;
           benchmark-ci-checks = benchmarkCiChecks;
+          benchmark-ci-checks-cargo2nix = benchmarkCiChecksCargo2nix;
         };
 
         apps = {
@@ -81,6 +95,10 @@
           benchmark-ci-checks = {
             type = "app";
             program = "${self.packages.${system}.benchmark-ci-checks}/bin/benchmark-ci-checks";
+          };
+          benchmark-ci-checks-cargo2nix = {
+            type = "app";
+            program = "${self.packages.${system}.benchmark-ci-checks-cargo2nix}/bin/benchmark-ci-checks-cargo2nix";
           };
         };
 

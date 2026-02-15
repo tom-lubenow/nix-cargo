@@ -33,7 +33,7 @@
 
 ## In-progress now
 
-- [ ] Add a cargo2nix-enabled benchmark lane for environments that can afford tool bootstrap.
+- [ ] Add benchmark result trend reporting (delta vs baseline) for CI output.
 
 ## Benchmarking
 
@@ -48,3 +48,5 @@
 - [x] Wire benchmark baseline checks into flake/CI checks.
   - [x] Added flake apps (`benchmark-baseline-check`, `benchmark-matrix-baseline-check`, `benchmark-ci-checks`).
   - [x] Added flake schema checks for baseline snapshots and scenario files.
+- [x] Add a cargo2nix-enabled benchmark lane for environments that can afford tool bootstrap.
+  - [x] Added gated flake app (`benchmark-ci-checks-cargo2nix`) with opt-in env flag.
