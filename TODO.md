@@ -24,6 +24,7 @@
   - [x] Extracted public-attrset emission section into `src/nix_public_attrs_emit.rs`.
   - [x] Extracted crate-plan emission section into `src/nix_crate_plan_emit.rs`.
   - [x] Extracted package-derivation emission section into `src/nix_package_derivation_emit.rs`.
+  - [x] Added typed crate-plan render model in `src/nix_emit_model.rs`.
 - [x] Add focused regression tests for:
   - [x] strict planner failure behavior
   - [x] multi-build-script workspaces

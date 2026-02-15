@@ -1,4 +1,5 @@
 pub(crate) fn append_package_derivations_section(out: &mut String) {
+    out.push_str(
         "  workspacePackageKeys = map (p: p.key) (builtins.filter (p: p.workspaceMember) cratePlan);\n\n",
     );
     out.push_str("  packageDerivations = foldl' (acc: packageDef:\n");

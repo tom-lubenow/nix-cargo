@@ -7,6 +7,7 @@ mod nix_cargo_home_emit;
 mod nix_crate_plan_emit;
 mod nix_emit;
 mod nix_header_emit;
+mod nix_emit_model;
 mod nix_package_derivation_emit;
 mod nix_public_attrs_emit;
 mod nix_string;
