@@ -2,12 +2,20 @@ use std::collections::{BTreeSet, HashMap};
 
 use crate::model::{CommandSpec, Plan};
 
+/// Per-package artifact layout requirements derived from captured Cargo units.
+///
+/// `target_triples` enumerates explicit `--target` triples seen in package commands.
+/// `needs_host_artifacts` indicates whether host-layout artifacts (no target triple path)
+/// are required for this package, e.g. for proc-macro/custom-build host compilations.
 #[derive(Debug, Clone)]
 pub struct PackageLayoutRequirements {
     pub target_triples: Vec<String>,
     pub needs_host_artifacts: bool,
 }
 
+/// Build host/target layout requirements keyed by `PlanPackage.key`.
+///
+/// The inference is unit-aware and prioritizes Cargo unit metadata for host-only kinds.
 pub fn package_layout_by_key(plan: &Plan) -> HashMap<String, PackageLayoutRequirements> {
     let mut host_flags: HashMap<String, bool> = plan
         .packages
@@ -61,6 +69,7 @@ pub fn package_layout_by_key(plan: &Plan) -> HashMap<String, PackageLayoutRequir
         .collect()
 }
 
+/// Extract `--target` triple from a captured rustc command if present.
 pub fn command_target_triple(command: &CommandSpec) -> Option<String> {
     let mut args = command.args.iter();
     while let Some(arg) = args.next() {

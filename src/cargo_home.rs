@@ -5,6 +5,7 @@ use base64::Engine as _;
 
 use crate::model::{Plan, PlanPackage};
 
+/// Plan for auto-materializing Cargo home sources when `cargoHome = null`.
 #[derive(Debug, Clone)]
 pub(crate) struct CargoHomeMaterializationPlan {
     pub(crate) registry_crates: Vec<RegistryCrateMaterialization>,
@@ -30,6 +31,7 @@ pub(crate) struct GitCrateMaterialization {
     pub(crate) repo_subpath: Option<String>,
 }
 
+/// Build a deterministic Cargo home materialization plan from resolved packages.
 pub(crate) fn build_cargo_home_materialization_plan(plan: &Plan) -> CargoHomeMaterializationPlan {
     let mut registry_crates = Vec::new();
     let mut git_crates = Vec::new();
@@ -226,4 +228,3 @@ fn hex_nibble(value: u8) -> Option<u8> {
         _ => None,
     }
 }
-

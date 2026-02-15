@@ -2,6 +2,9 @@ use std::collections::HashMap;
 
 use crate::model::Plan;
 
+/// Compute workspace-relative source prefixes per package key.
+///
+/// Prefixes are used to derive per-package `src` inputs for tighter invalidation boundaries.
 pub fn workspace_source_prefixes_by_package(plan: &Plan) -> HashMap<String, Vec<String>> {
     plan.packages
         .iter()
@@ -14,6 +17,7 @@ pub fn workspace_source_prefixes_by_package(plan: &Plan) -> HashMap<String, Vec<
         .collect()
 }
 
+/// If `source` points inside `workspace_root`, return its relative prefix.
 fn local_workspace_source_prefix(workspace_root: &str, source: &str) -> Option<String> {
     let workspace_root = workspace_root.trim_end_matches('/');
     let source = source
