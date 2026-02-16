@@ -21,7 +21,7 @@ pub(crate) struct RenderedPackagePlan {
 }
 
 pub(crate) fn build_rendered_package_plans(
-    ordered_packages: &[PlanPackage],
+    ordered_packages: &[&PlanPackage],
     units_by_package: &HashMap<String, Vec<Unit>>,
     package_layout: &HashMap<String, PackageLayoutRequirements>,
     source_prefixes_by_package: &HashMap<String, Vec<String>>,

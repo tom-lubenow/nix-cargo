@@ -45,7 +45,6 @@ pub fn render_nix_expression(plan: &Plan, release_mode: bool) -> String {
 
     append_crate_plan_section(&mut out, &rendered_packages);
 
-    out.push_str(
     append_package_derivations_section(&mut out);
     append_public_attrs_section(&mut out);
 
