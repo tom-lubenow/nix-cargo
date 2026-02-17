@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WORKSPACE_DIR="${ROOT_DIR}/examples/target-layout-workspace"
-PLAN_FILE="${WORKSPACE_DIR}/nix-cargo-plan.nix"
+PLAN_FILE="${WORKSPACE_DIR}/nix-cargo-plan.json"
 TARGET_TRIPLE="${NIX_CARGO_TARGET_TRIPLE:-x86_64-unknown-linux-gnu}"
 
 if [ -z "${NIX_CARGO_BIN:-}" ]; then
@@ -22,23 +22,16 @@ fi
 APP_KEY="app v0.1.0 (${WORKSPACE_DIR}/crates/app)"
 GEN_KEY="genmsg v0.1.0 (${WORKSPACE_DIR}/crates/genmsg)"
 
-LAYOUT_STATUS="$(
-  nix eval --impure --raw --expr "
-let
-  plan = import ${PLAN_FILE} {};
-  app = plan.packageLayouts.\"${APP_KEY}\";
-  gen = plan.packageLayouts.\"${GEN_KEY}\";
-in
-if (builtins.elem \"${TARGET_TRIPLE}\" app.targetTriples)
-   && (!app.needsHostArtifacts)
-   && (builtins.elem \"${TARGET_TRIPLE}\" gen.targetTriples)
-   && gen.needsHostArtifacts
-then \"ok\"
-else \"bad\"
-"
-)"
-
-if [ "${LAYOUT_STATUS}" != "ok" ]; then
+if ! jq -e \
+  --arg app "${APP_KEY}" \
+  --arg gen "${GEN_KEY}" \
+  --arg triple "${TARGET_TRIPLE}" \
+  '
+  (.package_layouts[$app].target_triples | index($triple)) != null
+  and (.package_layouts[$app].needs_host_artifacts == false)
+  and (.package_layouts[$gen].target_triples | index($triple)) != null
+  and (.package_layouts[$gen].needs_host_artifacts == true)
+  ' "${PLAN_FILE}" > /dev/null; then
   echo "target-layout-check: failed layout assertions" >&2
   exit 1
 fi

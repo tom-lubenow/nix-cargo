@@ -2404,6 +2404,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "nix-base32"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2628953ed836273ee4262e3708a8ef63ca38bd8a922070626eef7f9e5d8d536"
+
+[[package]]
 name = "nix-cargo"
 version = "0.1.0"
 dependencies = [
@@ -2412,9 +2418,31 @@ dependencies = [
  "cargo",
  "cargo-util",
  "clap",
+ "nix-libstore",
+ "nix-tool",
  "serde",
  "serde_json",
  "toml 0.8.23",
+]
+
+[[package]]
+name = "nix-libstore"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "nix-base32",
+ "serde",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
+name = "nix-tool"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "nix-libstore",
+ "serde_json",
 ]
 
 [[package]]

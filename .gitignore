@@ -4,6 +4,8 @@
 /result-*
 /examples/**/nix-cargo-plan.nix
 /examples/**/nix-cargo-target-triple-plan.nix
+/examples/**/nix-cargo-plan.json
+/examples/**/nix-cargo-target-triple-plan.json
 
 *.log
 *.tmp

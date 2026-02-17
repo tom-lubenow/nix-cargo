@@ -1,15 +1,8 @@
 mod cargo_plan;
-mod cargo_home;
 mod command_script;
 mod command_layout;
+mod libstore_backend;
 mod model;
-mod nix_cargo_home_emit;
-mod nix_crate_plan_emit;
-mod nix_emit;
-mod nix_header_emit;
-mod nix_emit_model;
-mod nix_package_derivation_emit;
-mod nix_public_attrs_emit;
 mod nix_string;
 mod plan_package;
 mod source_scope;
@@ -19,6 +12,7 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
+use serde::Serialize;
 use serde_json::to_string_pretty;
 use workspace::summarize_workspace;
 
@@ -54,19 +48,36 @@ enum Commands {
         #[arg(long)]
         target_triple: Option<String>,
     },
-    /// Emit a Nix expression with per-package derivations plus dynamic output refs.
+    /// Materialize per-package derivations and emit a JSON manifest.
     Emit {
         #[arg(short, long)]
         manifest_path: Option<PathBuf>,
         /// Write output to a file instead of stdout.
         #[arg(short, long)]
         output: Option<PathBuf>,
-        /// Use --release for generated crate build commands.
+        /// Materialize release build derivations.
         #[arg(long)]
         release: bool,
-        /// Build for this target triple (plumbed to Cargo build requested_kinds).
+        /// Plan for this target triple (plumbed to Cargo build requested_kinds).
         #[arg(long)]
         target_triple: Option<String>,
+    },
+    /// Materialize derivations and build one target package.
+    Build {
+        #[arg(short, long)]
+        manifest_path: Option<PathBuf>,
+        /// Build selected target: "default", full package key, or unique crate name.
+        #[arg(long, default_value = "default")]
+        target: String,
+        /// Build in release mode.
+        #[arg(long)]
+        release: bool,
+        /// Plan/build for this target triple (plumbed to Cargo build requested_kinds).
+        #[arg(long)]
+        target_triple: Option<String>,
+        /// Emit JSON result instead of raw output paths.
+        #[arg(short, long)]
+        json: bool,
     },
 }
 
@@ -124,20 +135,54 @@ fn main() -> Result<()> {
                 release,
                 target_triple.as_deref(),
             )?;
-            let generated = nix_emit::render_nix_expression(&plan, release);
+            let generated = libstore_backend::materialize_plan(&plan, release)?;
+            let serialized = to_string_pretty(&generated)?;
 
             match output {
                 Some(path) => {
-                    std::fs::write(&path, generated)
-                        .with_context(|| format!("failed to write nix output to {}", path.display()))?;
+                    std::fs::write(&path, serialized)
+                        .with_context(|| format!("failed to write materialization output to {}", path.display()))?;
                     println!("generated: {}", path.display());
                 }
-                None => print!("{generated}"),
+                None => print_json(&generated)?,
+            }
+        }
+        Commands::Build {
+            manifest_path,
+            target,
+            release,
+            target_triple,
+            json,
+        } => {
+            let plan = cargo_plan::build_plan(
+                manifest_path.as_deref(),
+                release,
+                target_triple.as_deref(),
+            )?;
+            let graph = libstore_backend::materialize_plan(&plan, release)?;
+            let target_key = graph.resolve_target_key(&target)?;
+            let output_paths = graph.build_target(&target_key)?;
+
+            if json {
+                print_json(&BuildResult {
+                    target: target_key,
+                    output_paths,
+                })?;
+            } else {
+                for output in output_paths {
+                    println!("{output}");
+                }
             }
         }
     }
 
     Ok(())
+}
+
+#[derive(Debug, Serialize)]
+struct BuildResult {
+    target: String,
+    output_paths: Vec<String>,
 }
 
 fn print_graph(summary: &WorkspaceSummary) {

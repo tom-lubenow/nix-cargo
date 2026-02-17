@@ -1,0 +1,11 @@
+[package]
+name = "nix-tool"
+version = "0.1.0"
+edition = "2021"
+description = "Helper to spawn Nix commands"
+license = "MIT"
+
+[dependencies]
+anyhow = "1.0"
+nix-libstore = { path = "../nix-libstore" }
+serde_json = "1"

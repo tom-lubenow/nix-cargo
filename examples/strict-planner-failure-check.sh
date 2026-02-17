@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WORKSPACE_DIR="${ROOT_DIR}/examples/failing-workspace"
-PLAN_FILE="${WORKSPACE_DIR}/nix-cargo-plan.nix"
+PLAN_FILE="${WORKSPACE_DIR}/nix-cargo-plan.json"
 
 if [ -z "${NIX_CARGO_BIN:-}" ]; then
   if [ -x "${ROOT_DIR}/target/debug/nix-cargo" ]; then
@@ -24,4 +24,3 @@ if "${NIX_CARGO_BIN}" emit --manifest-path "${WORKSPACE_DIR}/Cargo.toml" --outpu
 fi
 
 echo "strict-planner-failure-check: ok"
-

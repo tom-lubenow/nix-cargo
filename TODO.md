@@ -1,52 +1,25 @@
 # nix-cargo TODO
 
-## Priority 0 (correctness blockers)
+## Priority 0 (correctness)
 
-- [x] Make planner failure strict by default (no partial captured-unit plans on Cargo compile error).
-- [x] Replace heuristic build-script replay with explicit, deterministic mapping from compile unit context to build-script binary execution.
-  - [x] Added per-`runDir` build-script binary mapping to reduce global/fallback coupling.
-  - [x] Replay control now uses explicit unit metadata (`custom-build` compile units).
-  - [x] Remove remaining fallback heuristics.
-  - [x] Carry resolved build-script binary path from planning metadata into replay commands.
-  - [x] Remove binary-path discovery fallback (`--out-dir` scan); fail fast when metadata is missing.
+- [x] Strict planner failure behavior (no partial plans on Cargo errors).
+- [x] Deterministic build-script replay mapping using explicit unit metadata.
+- [x] Direct backend cutover to store derivation materialization (`nix derivation add`) instead of text `.nix` emission.
+- [x] Stable source snapshot naming for incremental rebuild reuse.
 
-## Priority 1 (correctness hardening)
+## Priority 1 (validation + quality)
 
-- [x] Make build-script binary selection deterministic (no unordered `find | head` behavior).
-- [x] Stop suppressing hydration copy errors (`cp ... || true`), or gate suppression behind explicit diagnostics.
-- [x] Tighten path-marker rewriting to path-aware substitutions (avoid broad substring rewrites).
+- [x] Functional fixture coverage (`check-all.sh`) for proc-macro, build.rs, target layouts, typed driver wiring.
+- [x] Incremental baseline checks (`incremental-benchmark-baseline-check.sh`, matrix baseline check).
+- [ ] Add focused regression for output-path canonicalization handling in `nix-tool::derivation_add` retry path.
+- [ ] Add focused regression for dependency artifact hydration from resolved output paths.
 
 ## Priority 2 (maintainability)
 
-- [x] Continue splitting `nix_emit.rs` into typed data modeling + renderer modules.
-  - [x] Extracted cargo-home emission section into `src/nix_cargo_home_emit.rs`.
-  - [x] Extracted preamble/header emission into `src/nix_header_emit.rs`.
-  - [x] Extracted public-attrset emission section into `src/nix_public_attrs_emit.rs`.
-  - [x] Extracted crate-plan emission section into `src/nix_crate_plan_emit.rs`.
-  - [x] Extracted package-derivation emission section into `src/nix_package_derivation_emit.rs`.
-  - [x] Added typed crate-plan render model in `src/nix_emit_model.rs`.
-- [x] Add focused regression tests for:
-  - [x] strict planner failure behavior
-  - [x] multi-build-script workspaces
-  - [x] cross-target + host-target mixed layouts
-  - [x] marker-rewrite edge cases
+- [ ] Split `src/libstore_backend.rs` into smaller modules (`toolchain`, `source_stage`, `derivation_materialize`, `script_render`).
+- [ ] Move JSON derivation-show parsing into `nix-tool` (typed helper API) so backend stops hand-parsing `serde_json::Value`.
+- [ ] Add lightweight docs for backend data flow (`Plan` -> `MaterializedGraph` -> build target).
 
-## In-progress now
+## In progress
 
-- [ ] Add benchmark result trend reporting (delta vs baseline) for CI output.
-
-## Benchmarking
-
-- [x] Add an incrementalism benchmark harness (`examples/incremental-benchmark.sh`) with
-  cold/rebuild derivation-count and elapsed-time reporting.
-- [x] Add CI-friendly baseline snapshots for benchmark fixtures.
-- [x] Add a real-world benchmark matrix harness and baseline snapshots.
-  - [x] Added local multi-scenario harness (`examples/incremental-benchmark-matrix.sh`).
-  - [x] Added scenario-file format and reusable scenario set (`examples/benchmark-matrix-scenarios/large.tsv`).
-  - [x] Added repo-backed scenario set (`examples/benchmark-matrix-scenarios/repo.tsv`).
-  - [x] Added matrix baseline snapshot + checker (`examples/benchmark-baselines/matrix-repo.json`, `examples/incremental-benchmark-matrix-baseline-check.sh`).
-- [x] Wire benchmark baseline checks into flake/CI checks.
-  - [x] Added flake apps (`benchmark-baseline-check`, `benchmark-matrix-baseline-check`, `benchmark-ci-checks`).
-  - [x] Added flake schema checks for baseline snapshots and scenario files.
-- [x] Add a cargo2nix-enabled benchmark lane for environments that can afford tool bootstrap.
-  - [x] Added gated flake app (`benchmark-ci-checks-cargo2nix`) with opt-in env flag.
+- [ ] Add benchmark trend reporting (delta vs checked-in baselines) for CI output.

@@ -29,13 +29,9 @@ let
     outputHashAlgo = "sha256";
 
     requiredSystemFeatures = [ "recursive-nix" ];
-    nativeBuildInputs = [ pkgs.nix pkgs.rustc pkgs.cargo pkgs.stdenv.cc nixCargo ];
+    nativeBuildInputs = [ pkgs.nix pkgs.jq pkgs.rustc pkgs.cargo pkgs.stdenv.cc nixCargo ];
 
-    PLAN_PKGS_PATH = toString pkgs.path;
     PLAN_SRC = toString srcStore;
-    PLAN_CARGO_HOME = if cargoHome == null then "" else toString cargoHome;
-    PLAN_GIT_SOURCE_HASHES = builtins.toJSON gitSourceHashes;
-    PLAN_ALLOW_IMPURE_GIT_FETCH = if allowImpureGitFetch then "true" else "false";
     PLAN_MANIFEST = manifestStorePath;
     PLAN_RELEASE = if release then "true" else "false";
     PLAN_TARGET_TRIPLE = if targetTriple == null then "" else targetTriple;
@@ -45,7 +41,7 @@ let
   } ''
     set -euo pipefail
 
-    planNix="$TMPDIR/nix-cargo-plan.nix"
+    planJson="$TMPDIR/nix-cargo-plan.json"
     releaseArgs=()
     if [ "$PLAN_RELEASE" = "true" ]; then
       releaseArgs+=(--release)
@@ -61,44 +57,36 @@ let
       --manifest-path "$PLAN_MANIFEST" \
       "''${releaseArgs[@]}" \
       "''${targetArgs[@]}" \
-      --output "$planNix"
+      --output "$planJson"
 
-    resolveNix="$TMPDIR/nix-cargo-resolve.nix"
-    cat > "$resolveNix" <<'EOF'
-let
-  pkgs = import (builtins.getEnv "PLAN_PKGS_PATH") { };
-  cargoHomePath = builtins.getEnv "PLAN_CARGO_HOME";
-  plan = import (builtins.getEnv "PLAN_NIX") ({
-    inherit pkgs;
-    src = builtins.storePath (builtins.getEnv "PLAN_SRC");
-    gitSourceHashes = builtins.fromJSON (builtins.getEnv "PLAN_GIT_SOURCE_HASHES");
-    allowImpureGitFetch = (builtins.getEnv "PLAN_ALLOW_IMPURE_GIT_FETCH") == "true";
-    release = (builtins.getEnv "PLAN_RELEASE") == "true";
-  } // (
-    if cargoHomePath == "" then { }
-    else { cargoHome = builtins.storePath cargoHomePath; }
-  ));
-  targetKey = builtins.getEnv "PLAN_TARGET";
-  packageKeys = builtins.attrNames plan.packageDerivations;
-  nameMatches = builtins.filter (key: pkgs.lib.hasPrefix (targetKey + " v") key) packageKeys;
-  matchedKey =
-    if builtins.length nameMatches == 1 then builtins.head nameMatches
-    else if builtins.length nameMatches == 0 then null
-    else throw "nix-cargo-driver: target ''${targetKey}' is ambiguous; pass full package key";
-  drvPath =
-    if targetKey == "default" then
-      plan.default.drvPath
-    else if builtins.hasAttr targetKey plan.packageDerivations then
-      (builtins.getAttr targetKey plan.packageDerivations).drvPath
-    else if matchedKey != null then
-      (builtins.getAttr matchedKey plan.packageDerivations).drvPath
+    targetKey="$PLAN_TARGET"
+    resolvedKey=""
+    if [ "$targetKey" = "default" ]; then
+      resolvedKey="$(jq -r '.default_workspace_package_key // empty' "$planJson")"
+      if [ -z "$resolvedKey" ] || [ "$resolvedKey" = "null" ]; then
+        echo "nix-cargo-driver: no default workspace target available" >&2
+        exit 1
+      fi
+    elif jq -e --arg key "$targetKey" '.package_derivations | has($key)' "$planJson" >/dev/null; then
+      resolvedKey="$targetKey"
     else
-      throw "nix-cargo-driver: unknown target ''${targetKey}'";
-in drvPath
-EOF
+      mapfile -t nameMatches < <(jq -r --arg name "$targetKey" '. as $p | $p.workspace_package_keys[] | select($p.package_names[.] == $name)' "$planJson")
+      if [ "''${#nameMatches[@]}" -eq 1 ]; then
+        resolvedKey="''${nameMatches[0]}"
+      elif [ "''${#nameMatches[@]}" -eq 0 ]; then
+        echo "nix-cargo-driver: unknown target ''${targetKey}'" >&2
+        exit 1
+      else
+        echo "nix-cargo-driver: target ''${targetKey}' is ambiguous; pass full package key" >&2
+        exit 1
+      fi
+    fi
 
-    export PLAN_NIX="$planNix"
-    drvPath="$(nix eval --raw --file "$resolveNix")"
+    drvPath="$(jq -r --arg key "$resolvedKey" '.package_derivations[$key] // empty' "$planJson")"
+    if [ -z "$drvPath" ] || [ "$drvPath" = "null" ]; then
+      echo "nix-cargo-driver: failed to resolve derivation path for target ''${resolvedKey}'" >&2
+      exit 1
+    fi
     printf '%s' "$drvPath" > "$out"
   '';
 in

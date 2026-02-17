@@ -137,10 +137,8 @@ mutate_workspace() {
 run_nix_cargo_phase() {
   local workspace_copy="$1"
   local plan_json="${workspace_copy}/nix-cargo-bench-plan.json"
-  local plan_nix="${workspace_copy}/nix-cargo-bench-plan.nix"
 
   "${NIX_CARGO_BIN}" plan --manifest-path "${workspace_copy}/Cargo.toml" --json > "${plan_json}"
-  "${NIX_CARGO_BIN}" emit --manifest-path "${workspace_copy}/Cargo.toml" --output "${plan_nix}" > /dev/null
 
   local target_keys target_key_count target_key
   target_keys="$(
@@ -155,7 +153,7 @@ run_nix_cargo_phase() {
   fi
   target_key="$(printf '%s\n' "${target_keys}" | sed '/^$/d')"
 
-  nix build --no-link --impure --expr "let p = import ${plan_nix} {}; in p.workspacePackages.\"${target_key}\""
+  "${NIX_CARGO_BIN}" build --manifest-path "${workspace_copy}/Cargo.toml" --target "${target_key}" > /dev/null
 }
 
 run_cargo2nix_setup() {
@@ -241,4 +239,3 @@ fi
 if [ "${KEEP_TMP}" -eq 1 ]; then
   echo "benchmark tmp kept: ${TMP_DIR}" >&2
 fi
-

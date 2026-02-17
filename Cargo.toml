@@ -1,3 +1,6 @@
+[workspace]
+members = [".", "crates/*"]
+
 [package]
 name = "nix-cargo"
 version = "0.1.0"
@@ -14,3 +17,5 @@ cargo = "0.94"
 cargo-util = "0.2.26"
 toml = "0.8"
 base64 = "0.22"
+nix-libstore = { path = "crates/nix-libstore" }
+nix-tool = { path = "crates/nix-tool" }
