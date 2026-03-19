@@ -2,12 +2,12 @@
   {
     "engine": "nix-cargo",
     "phase": "cold",
-    "derivations": 2
+    "derivations": 3
   },
   {
     "engine": "nix-cargo",
     "phase": "rebuild",
-    "derivations": 2
+    "derivations": 3
   },
   {
     "engine": "cargo2nix",

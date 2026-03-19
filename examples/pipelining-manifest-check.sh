@@ -27,7 +27,7 @@ jq -e \
   (.package_phases[$mid].metadata.derivation | type) == "string"
   and (.package_phases[$mid].full.derivation | type) == "string"
   and (.package_phases[$mid].metadata.dependency_phases[$leaf] == "metadata")
-  and (.package_phases[$mid].full.dependency_phases[$leaf] == "metadata")
+  and (.package_phases[$mid].full.dependency_phases[$leaf] == "full")
   and (.package_phases[$app].metadata == null)
   ' \
   "${PLAN_FILE}" > /dev/null
