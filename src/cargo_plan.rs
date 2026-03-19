@@ -560,7 +560,7 @@ mod tests {
     #[test]
     fn replace_prefix_does_not_rewrite_partial_path_segment() {
         let value = "OUT_DIR=/tmp/work/targeted/debug".to_string();
-        let rewritten = replace_prefix(value, "/tmp/work/target", PATH_MARKER_TARGET);
+        let rewritten = replace_prefix(value.clone(), "/tmp/work/target", PATH_MARKER_TARGET);
         assert_eq!(rewritten, value);
     }
 

@@ -10,7 +10,7 @@ Commands:
 
 - `graph`: print workspace package graph
 - `plan`: print captured Cargo unit graph + rustc/build-script command metadata
-- `emit`: materialize derivations and write a JSON manifest (package keys, drv paths, installables, layout metadata)
+- `emit`: materialize derivations and write a JSON manifest (package keys, drv paths, installables, phase metadata, layout metadata)
 - `build`: materialize derivations and build a selected target package
 
 The backend is now direct-derivation (`nix-libstore` + `nix-tool`), not text `.nix` emission.
@@ -54,6 +54,7 @@ cargo run -- build \
 
 - Planning is based on Cargo unstable internals (`compile_with_exec` + custom executor).
 - Build replay is package-scoped and replays captured argv/env command shapes.
+- Rust library replay is pipelined into metadata/full phases when captured `--extern` edges use `.rmeta`.
 - Dependency hydration copies crate artifacts (`deps`, `build`, `examples`, `.fingerprint`) from dependency outputs into package-local target layout before replay.
 - Build-script/proc-macro and host-vs-target layout are handled using captured unit metadata (`targetTriples`, `needsHostArtifacts`).
 - Source snapshots are added to store with deterministic names to preserve derivation reuse across rebuilds.

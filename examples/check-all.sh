@@ -10,5 +10,6 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 "${ROOT_DIR}/examples/typed-driver-check.sh"
 "${ROOT_DIR}/examples/strict-planner-failure-check.sh"
 "${ROOT_DIR}/examples/multi-build-script-check.sh"
+"${ROOT_DIR}/examples/pipelining-manifest-check.sh"
 
 echo "check-all: ok"

@@ -11,25 +11,40 @@
     flake-parts.lib.mkFlake { inherit inputs; } {
       systems = [ "x86_64-linux" "aarch64-linux" ];
 
-      perSystem = { self, pkgs, system, ... }: let
-        craneLib = inputs.crane.lib.${system};
+      perSystem = { self', pkgs, system, ... }: let
+        craneLib = inputs.crane.mkLib pkgs;
         src = ./.;
-        common = {
+        baseCommon = {
           src = src;
           doCheck = false;
           cargoExtraArgs = "--locked";
+          nativeBuildInputs = [ pkgs.pkg-config ];
+          buildInputs = [ pkgs.openssl ];
+        };
+        cargoVendorDir = craneLib.vendorCargoDeps baseCommon;
+        common = baseCommon // {
+          inherit cargoVendorDir;
         };
         cargoArtifacts = craneLib.buildDepsOnly (common);
+        driverCargoHome = pkgs.runCommand "nix-cargo-driver-cargo-home" {} ''
+          mkdir -p "$out"
+          cp ${cargoVendorDir}/config.toml "$out/config.toml"
+          chmod u+w "$out/config.toml"
+          cat >> "$out/config.toml" <<EOF
+[net]
+offline = true
+EOF
+        '';
         mkDriver = import ./lib/mk-driver.nix {
           lib = pkgs.lib;
           inherit pkgs;
-          nixCargo = self.packages.${system}.default;
+          nixCargo = self'.packages.default;
         };
         benchmarkBaselineCheck = pkgs.writeShellApplication {
           name = "benchmark-baseline-check";
-          runtimeInputs = [ pkgs.jq pkgs.nix self.packages.${system}.default ];
+          runtimeInputs = [ pkgs.jq pkgs.nix self'.packages.default ];
           text = ''
-            export NIX_CARGO_BIN="${self.packages.${system}.default}/bin/nix-cargo"
+            export NIX_CARGO_BIN="${self'.packages.default}/bin/nix-cargo"
             exec ${src}/examples/incremental-benchmark-baseline-check.sh \
               --engine nix-cargo \
               --no-warmup \
@@ -38,9 +53,9 @@
         };
         benchmarkMatrixBaselineCheck = pkgs.writeShellApplication {
           name = "benchmark-matrix-baseline-check";
-          runtimeInputs = [ pkgs.jq pkgs.nix self.packages.${system}.default ];
+          runtimeInputs = [ pkgs.jq pkgs.nix self'.packages.default ];
           text = ''
-            export NIX_CARGO_BIN="${self.packages.${system}.default}/bin/nix-cargo"
+            export NIX_CARGO_BIN="${self'.packages.default}/bin/nix-cargo"
             exec ${src}/examples/incremental-benchmark-matrix-baseline-check.sh \
               --engine nix-cargo \
               --no-warmup \
@@ -49,22 +64,22 @@
         };
         benchmarkCiChecks = pkgs.writeShellApplication {
           name = "benchmark-ci-checks";
-          runtimeInputs = [ pkgs.jq pkgs.nix self.packages.${system}.default ];
+          runtimeInputs = [ pkgs.jq pkgs.nix self'.packages.default ];
           text = ''
-            export NIX_CARGO_BIN="${self.packages.${system}.default}/bin/nix-cargo"
+            export NIX_CARGO_BIN="${self'.packages.default}/bin/nix-cargo"
             ${src}/examples/incremental-benchmark-baseline-check.sh --engine nix-cargo --no-warmup
             ${src}/examples/incremental-benchmark-matrix-baseline-check.sh --engine nix-cargo --no-warmup
           '';
         };
         benchmarkCiChecksCargo2nix = pkgs.writeShellApplication {
           name = "benchmark-ci-checks-cargo2nix";
-          runtimeInputs = [ pkgs.jq pkgs.nix self.packages.${system}.default ];
+          runtimeInputs = [ pkgs.jq pkgs.nix self'.packages.default ];
           text = ''
             if [ "''${NIX_CARGO_ENABLE_CARGO2NIX_LANE:-0}" != "1" ]; then
               echo "benchmark-ci-checks-cargo2nix: skipped (set NIX_CARGO_ENABLE_CARGO2NIX_LANE=1 to enable)"
               exit 0
             fi
-            export NIX_CARGO_BIN="${self.packages.${system}.default}/bin/nix-cargo"
+            export NIX_CARGO_BIN="${self'.packages.default}/bin/nix-cargo"
             ${src}/examples/incremental-benchmark-baseline-check.sh --engine both --no-warmup
             ${src}/examples/incremental-benchmark-matrix-baseline-check.sh --engine both --no-warmup
           '';
@@ -74,6 +89,7 @@
           default = craneLib.buildPackage (common // { inherit cargoArtifacts; });
           driver-default = mkDriver {
             inherit src;
+            cargoHome = driverCargoHome;
             name = "nix-cargo-driver-default";
             target = "default";
           };
@@ -86,19 +102,19 @@
         apps = {
           benchmark-baseline-check = {
             type = "app";
-            program = "${self.packages.${system}.benchmark-baseline-check}/bin/benchmark-baseline-check";
+            program = "${self'.packages.benchmark-baseline-check}/bin/benchmark-baseline-check";
           };
           benchmark-matrix-baseline-check = {
             type = "app";
-            program = "${self.packages.${system}.benchmark-matrix-baseline-check}/bin/benchmark-matrix-baseline-check";
+            program = "${self'.packages.benchmark-matrix-baseline-check}/bin/benchmark-matrix-baseline-check";
           };
           benchmark-ci-checks = {
             type = "app";
-            program = "${self.packages.${system}.benchmark-ci-checks}/bin/benchmark-ci-checks";
+            program = "${self'.packages.benchmark-ci-checks}/bin/benchmark-ci-checks";
           };
           benchmark-ci-checks-cargo2nix = {
             type = "app";
-            program = "${self.packages.${system}.benchmark-ci-checks-cargo2nix}/bin/benchmark-ci-checks-cargo2nix";
+            program = "${self'.packages.benchmark-ci-checks-cargo2nix}/bin/benchmark-ci-checks-cargo2nix";
           };
         };
 
@@ -143,8 +159,8 @@
         };
 
         devShells.default = pkgs.mkShell {
-          inputsFrom = [ self.packages.${system}.default ];
-          packages = [ pkgs.rustc pkgs.cargo pkgs.cargo-edit pkgs.pkg-config ];
+          inputsFrom = [ self'.packages.default ];
+          packages = [ pkgs.rustc pkgs.cargo pkgs.cargo-edit pkgs.pkg-config pkgs.openssl ];
         };
       };
     };

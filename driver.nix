@@ -29,13 +29,35 @@ let
     outputHashAlgo = "sha256";
 
     requiredSystemFeatures = [ "recursive-nix" ];
-    nativeBuildInputs = [ pkgs.nix pkgs.jq pkgs.rustc pkgs.cargo pkgs.stdenv.cc nixCargo ];
+    nativeBuildInputs = [
+      pkgs.nix
+      pkgs.jq
+      pkgs.rustc
+      pkgs.cargo
+      pkgs.stdenv.cc
+      pkgs.pkg-config
+      nixCargo
+    ];
+    buildInputs = [ pkgs.openssl ];
 
     PLAN_SRC = toString srcStore;
     PLAN_MANIFEST = manifestStorePath;
+    PLAN_CARGO_HOME = if cargoHome == null then "" else toString cargoHome;
     PLAN_RELEASE = if release then "true" else "false";
     PLAN_TARGET_TRIPLE = if targetTriple == null then "" else targetTriple;
     PLAN_TARGET = target;
+    NIXCARGO_TOOL_BASH_DRV = pkgs.bash.drvPath;
+    NIXCARGO_TOOL_BASH_OUT = pkgs.bash.outPath;
+    NIXCARGO_TOOL_COREUTILS_DRV = pkgs.coreutils.drvPath;
+    NIXCARGO_TOOL_COREUTILS_OUT = pkgs.coreutils.outPath;
+    NIXCARGO_TOOL_CARGO_DRV = pkgs.cargo.drvPath;
+    NIXCARGO_TOOL_CARGO_OUT = pkgs.cargo.outPath;
+    NIXCARGO_TOOL_RUSTC_DRV = pkgs.rustc.drvPath;
+    NIXCARGO_TOOL_RUSTC_OUT = pkgs.rustc.outPath;
+    NIXCARGO_TOOL_PKG_CONFIG_DRV = pkgs.pkg-config.drvPath;
+    NIXCARGO_TOOL_PKG_CONFIG_OUT = pkgs.pkg-config.outPath;
+    NIXCARGO_TOOL_CC_DRV = pkgs.stdenv.cc.drvPath;
+    NIXCARGO_TOOL_CC_OUT = pkgs.stdenv.cc.outPath;
 
     NIX_CONFIG = "extra-experimental-features = nix-command flakes ca-derivations dynamic-derivations recursive-nix";
   } ''
@@ -50,8 +72,18 @@ let
     if [ -n "$PLAN_TARGET_TRIPLE" ]; then
       targetArgs+=(--target-triple "$PLAN_TARGET_TRIPLE")
     fi
+    export HOME="$TMPDIR/home"
+    export XDG_CACHE_HOME="$TMPDIR/xdg-cache"
+    export CARGO_HOME="$TMPDIR/cargo-home"
     export CARGO_TARGET_DIR="$TMPDIR/target"
+    mkdir -p "$HOME"
+    mkdir -p "$XDG_CACHE_HOME"
+    mkdir -p "$CARGO_HOME"
     mkdir -p "$CARGO_TARGET_DIR"
+    if [ -n "$PLAN_CARGO_HOME" ]; then
+      cp -R "$PLAN_CARGO_HOME"/. "$CARGO_HOME"/
+      chmod -R u+w "$CARGO_HOME"
+    fi
 
     "${nixCargo}/bin/nix-cargo" emit \
       --manifest-path "$PLAN_MANIFEST" \

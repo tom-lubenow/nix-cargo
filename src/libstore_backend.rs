@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, HashMap};
+use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -14,8 +15,8 @@ use serde_json::Value;
 use crate::command_layout::{package_layout_by_key, PackageLayoutRequirements};
 use crate::command_script::render_command_script;
 use crate::model::{
-    Plan, PlanPackage, PATH_MARKER_CARGO_BIN, PATH_MARKER_CARGO_HOME, PATH_MARKER_RUSTC,
-    PATH_MARKER_SRC, PATH_MARKER_TARGET,
+    Plan, PlanPackage, Unit, PATH_MARKER_CARGO_BIN, PATH_MARKER_CARGO_HOME,
+    PATH_MARKER_RUSTC, PATH_MARKER_SRC, PATH_MARKER_TARGET,
 };
 use crate::nix_string::{shell_array_literal, shell_single_quote};
 use crate::plan_package::{topologically_sorted_packages, units_by_package};
@@ -25,6 +26,19 @@ use crate::source_scope::workspace_source_prefixes_by_package;
 pub struct PackageLayoutInfo {
     pub target_triples: Vec<String>,
     pub needs_host_artifacts: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct MaterializedPhaseInfo {
+    pub derivation: String,
+    pub installable: String,
+    pub dependency_phases: BTreeMap<String, DependencyPhase>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PackagePhaseInfo {
+    pub metadata: Option<MaterializedPhaseInfo>,
+    pub full: MaterializedPhaseInfo,
 }
 
 #[derive(Clone, Serialize)]
@@ -37,9 +51,31 @@ pub struct MaterializedGraph {
     pub package_names: BTreeMap<String, String>,
     pub package_derivations: BTreeMap<String, String>,
     pub package_installables: BTreeMap<String, String>,
+    pub package_phases: BTreeMap<String, PackagePhaseInfo>,
     pub package_layouts: BTreeMap<String, PackageLayoutInfo>,
     #[serde(skip_serializing)]
     package_refs: HashMap<String, SingleDerivedPath>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum DependencyPhase {
+    Metadata,
+    Full,
+}
+
+#[derive(Debug, Clone)]
+struct PackagePhasePlan {
+    metadata_units: Vec<Unit>,
+    metadata_dependencies: BTreeMap<String, DependencyPhase>,
+    full_units: Vec<Unit>,
+    full_dependencies: BTreeMap<String, DependencyPhase>,
+}
+
+impl PackagePhasePlan {
+    fn has_metadata_phase(&self) -> bool {
+        !self.metadata_units.is_empty()
+    }
 }
 
 impl MaterializedGraph {
@@ -117,9 +153,12 @@ pub fn materialize_plan(plan: &Plan, release_mode: bool) -> Result<MaterializedG
     let mut package_names = BTreeMap::new();
     let mut package_derivations = BTreeMap::new();
     let mut package_installables = BTreeMap::new();
+    let mut package_phases = BTreeMap::new();
     let mut package_layouts = BTreeMap::new();
     let mut package_refs: HashMap<String, SingleDerivedPath> = HashMap::new();
     let mut package_output_paths: HashMap<String, String> = HashMap::new();
+    let mut package_metadata_refs: HashMap<String, SingleDerivedPath> = HashMap::new();
+    let mut package_metadata_output_paths: HashMap<String, String> = HashMap::new();
 
     for (package_index, package) in ordered_packages.iter().enumerate() {
         let layout = package_layout
@@ -133,6 +172,7 @@ pub fn materialize_plan(plan: &Plan, release_mode: bool) -> Result<MaterializedG
             .get(package.key.as_str())
             .cloned()
             .unwrap_or_default();
+        let phase_plan = build_package_phase_plan(plan, package, &units);
         let source_prefixes = source_prefixes_by_package
             .get(package.key.as_str())
             .cloned()
@@ -150,63 +190,95 @@ pub fn materialize_plan(plan: &Plan, release_mode: bool) -> Result<MaterializedG
             .with_context(|| format!("failed to add staged source for {}", package.key))?;
         let _ = fs::remove_dir_all(&staged_source);
 
-        let dependency_refs = package
-            .dependencies
-            .iter()
-            .filter_map(|key| package_refs.get(key).cloned())
-            .collect::<Vec<_>>();
-        let dependency_output_paths = package
-            .dependencies
-            .iter()
-            .filter_map(|key| package_output_paths.get(key).cloned())
-            .collect::<Vec<_>>();
+        let mut metadata_phase_info = None;
+        if phase_plan.has_metadata_phase() {
+            let metadata_dependency_refs = resolve_phase_dependency_refs(
+                &phase_plan.metadata_dependencies,
+                &package_refs,
+                &package_metadata_refs,
+            )?;
+            let metadata_dependency_output_paths = resolve_phase_dependency_output_paths(
+                &phase_plan.metadata_dependencies,
+                &package_output_paths,
+                &package_metadata_output_paths,
+            )?;
 
-        let command_script = render_command_script(&units);
-        let build_script = render_package_builder_script(
+            let (metadata_drv_path, metadata_ref, metadata_output_path) =
+                materialize_package_derivation_phase(
+                    plan,
+                    package,
+                    package_index,
+                    Some("metadata"),
+                    &phase_plan.metadata_units,
+                    &layout,
+                    &toolchain,
+                    &nix_tool,
+                    &system,
+                    &source_store_path,
+                    cargo_home_snapshot.as_ref(),
+                    &metadata_dependency_refs,
+                    &metadata_dependency_output_paths,
+                    release_mode,
+                )
+                .with_context(|| {
+                    format!("failed to materialize metadata phase for {}", package.key)
+                })?;
+
+            metadata_phase_info = Some(MaterializedPhaseInfo {
+                derivation: metadata_drv_path.to_string(),
+                installable: metadata_ref.to_string(),
+                dependency_phases: phase_plan.metadata_dependencies.clone(),
+            });
+            package_metadata_refs.insert(package.key.clone(), metadata_ref);
+            package_metadata_output_paths.insert(package.key.clone(), metadata_output_path);
+        }
+
+        let mut full_dependency_refs = resolve_phase_dependency_refs(
+            &phase_plan.full_dependencies,
+            &package_refs,
+            &package_metadata_refs,
+        )?;
+        let full_dependency_output_paths = resolve_phase_dependency_output_paths(
+            &phase_plan.full_dependencies,
+            &package_output_paths,
+            &package_metadata_output_paths,
+        )?;
+        if let Some(metadata_ref) = package_metadata_refs.get(&package.key).cloned() {
+            full_dependency_refs.push(metadata_ref);
+        }
+
+        let (drv_path, package_ref, output_path) = materialize_package_derivation_phase(
             plan,
             package,
+            package_index,
+            None,
+            &phase_plan.full_units,
             &layout,
             &toolchain,
+            &nix_tool,
+            &system,
             &source_store_path,
             cargo_home_snapshot.as_ref(),
-            &dependency_output_paths,
-            &command_script,
+            &full_dependency_refs,
+            &full_dependency_output_paths,
             release_mode,
-        );
-
-        let drv_name = format!(
-            "nix-cargo-{}-{}",
-            sanitize_derivation_component(&package.name),
-            package_index
-        );
-        let mut derivation = Derivation::new(&drv_name, &system, &toolchain.bash_builder());
-        derivation
-            .add_arg("-euo")
-            .add_arg("pipefail")
-            .add_arg("-c")
-            .add_arg(&build_script)
-            .set_env("PATH", &toolchain.path_env())
-            .add_output("out", None, None, None);
-        derivation.add_input_src(&source_store_path);
-        if let Some(cargo_home_store) = cargo_home_snapshot.as_ref() {
-            derivation.add_input_src(cargo_home_store);
-        }
-        for dep in &dependency_refs {
-            derivation.add_derived_path(dep);
-        }
-        toolchain.add_inputs(&mut derivation);
-
-        let drv_path = nix_tool
-            .derivation_add(&derivation)
-            .with_context(|| format!("failed to add derivation for {}", package.key))?;
-        let package_ref =
-            SingleDerivedPath::Built(SingleDerivedPathBuilt::new(drv_path.clone(), "out".to_string()));
-        let output_path = derivation_output_path(&nix_tool, &drv_path, "out")
-            .with_context(|| format!("failed to resolve output path for {}", package.key))?;
+        )
+        .with_context(|| format!("failed to materialize full phase for {}", package.key))?;
 
         package_names.insert(package.key.clone(), package.name.clone());
         package_derivations.insert(package.key.clone(), drv_path.to_string());
         package_installables.insert(package.key.clone(), package_ref.to_string());
+        package_phases.insert(
+            package.key.clone(),
+            PackagePhaseInfo {
+                metadata: metadata_phase_info,
+                full: MaterializedPhaseInfo {
+                    derivation: drv_path.to_string(),
+                    installable: package_ref.to_string(),
+                    dependency_phases: phase_plan.full_dependencies.clone(),
+                },
+            },
+        );
         package_layouts.insert(
             package.key.clone(),
             PackageLayoutInfo {
@@ -235,9 +307,368 @@ pub fn materialize_plan(plan: &Plan, release_mode: bool) -> Result<MaterializedG
         package_names,
         package_derivations,
         package_installables,
+        package_phases,
         package_layouts,
         package_refs,
     })
+}
+
+fn materialize_package_derivation_phase(
+    plan: &Plan,
+    package: &PlanPackage,
+    package_index: usize,
+    phase_suffix: Option<&str>,
+    units: &[Unit],
+    layout: &PackageLayoutRequirements,
+    toolchain: &Toolchain,
+    nix_tool: &NixTool,
+    system: &str,
+    source_store_path: &StorePath,
+    cargo_home_snapshot: Option<&StorePath>,
+    dependency_refs: &[SingleDerivedPath],
+    dependency_output_paths: &[String],
+    release_mode: bool,
+) -> Result<(StorePath, SingleDerivedPath, String)> {
+    let command_script = render_command_script(units);
+    let build_script = render_package_builder_script(
+        plan,
+        package,
+        layout,
+        toolchain,
+        source_store_path,
+        cargo_home_snapshot,
+        dependency_output_paths,
+        &command_script,
+        release_mode,
+    );
+
+    let drv_name = match phase_suffix {
+        Some(suffix) => format!(
+            "nix-cargo-{}-{}-{suffix}",
+            sanitize_derivation_component(&package.name),
+            package_index
+        ),
+        None => format!(
+            "nix-cargo-{}-{}",
+            sanitize_derivation_component(&package.name),
+            package_index
+        ),
+    };
+    let mut derivation = Derivation::new(&drv_name, system, &toolchain.bash_builder());
+    derivation
+        .add_arg("-euo")
+        .add_arg("pipefail")
+        .add_arg("-c")
+        .add_arg(&build_script)
+        .set_env("PATH", &toolchain.path_env())
+        .add_output("out", None, None, None);
+    derivation.add_input_src(source_store_path);
+    if let Some(cargo_home_store) = cargo_home_snapshot {
+        derivation.add_input_src(cargo_home_store);
+    }
+    for dep in dependency_refs {
+        derivation.add_derived_path(dep);
+    }
+    toolchain.add_inputs(&mut derivation);
+
+    let drv_path = nix_tool.derivation_add(&derivation)?;
+    let package_ref =
+        SingleDerivedPath::Built(SingleDerivedPathBuilt::new(drv_path.clone(), "out".to_string()));
+    let output_path = derivation_output_path(nix_tool, &drv_path, "out")?;
+
+    Ok((drv_path, package_ref, output_path))
+}
+
+fn build_package_phase_plan(plan: &Plan, package: &PlanPackage, units: &[Unit]) -> PackagePhasePlan {
+    let has_metadata_phase = units.iter().any(is_metadata_phase_unit);
+    let metadata_units = if has_metadata_phase {
+        units.iter()
+            .filter(|unit| is_build_script_compile_unit(unit) || is_metadata_phase_unit(unit))
+            .cloned()
+            .map(rewrite_unit_for_metadata_phase)
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
+    let full_units = units.to_vec();
+
+    let metadata_dependencies = dependency_phase_requirements(plan, package, &metadata_units);
+    let full_dependencies = dependency_phase_requirements(plan, package, &full_units);
+
+    PackagePhasePlan {
+        metadata_units,
+        metadata_dependencies,
+        full_units,
+        full_dependencies,
+    }
+}
+
+fn resolve_phase_dependency_refs(
+    requirements: &BTreeMap<String, DependencyPhase>,
+    full_refs: &HashMap<String, SingleDerivedPath>,
+    metadata_refs: &HashMap<String, SingleDerivedPath>,
+) -> Result<Vec<SingleDerivedPath>> {
+    let mut refs = Vec::with_capacity(requirements.len());
+    for (package_key, phase) in requirements {
+        let reference = match phase {
+            DependencyPhase::Metadata => metadata_refs
+                .get(package_key)
+                .or_else(|| full_refs.get(package_key))
+                .cloned(),
+            DependencyPhase::Full => full_refs.get(package_key).cloned(),
+        }
+        .ok_or_else(|| anyhow!("missing {:?} dependency reference for `{package_key}`", phase))?;
+        refs.push(reference);
+    }
+    Ok(refs)
+}
+
+fn resolve_phase_dependency_output_paths(
+    requirements: &BTreeMap<String, DependencyPhase>,
+    full_output_paths: &HashMap<String, String>,
+    metadata_output_paths: &HashMap<String, String>,
+) -> Result<Vec<String>> {
+    let mut output_paths = Vec::with_capacity(requirements.len());
+    for (package_key, phase) in requirements {
+        let output_path = match phase {
+            DependencyPhase::Metadata => metadata_output_paths
+                .get(package_key)
+                .or_else(|| full_output_paths.get(package_key))
+                .cloned(),
+            DependencyPhase::Full => full_output_paths.get(package_key).cloned(),
+        }
+        .ok_or_else(|| anyhow!("missing {:?} dependency output path for `{package_key}`", phase))?;
+        output_paths.push(output_path);
+    }
+    Ok(output_paths)
+}
+
+fn dependency_phase_requirements(
+    plan: &Plan,
+    package: &PlanPackage,
+    units: &[Unit],
+) -> BTreeMap<String, DependencyPhase> {
+    let dependency_keys = package
+        .dependencies
+        .iter()
+        .cloned()
+        .collect::<Vec<_>>();
+    let mut requirements = BTreeMap::new();
+    for unit in units {
+        for (dependency_key, phase) in unit_dependency_requirements(plan, &dependency_keys, unit) {
+            requirements
+                .entry(dependency_key)
+                .and_modify(|current| *current = stronger_phase(*current, phase))
+                .or_insert(phase);
+        }
+    }
+    requirements
+}
+
+fn unit_dependency_requirements(
+    plan: &Plan,
+    dependency_keys: &[String],
+    unit: &Unit,
+) -> Vec<(String, DependencyPhase)> {
+    let mut requirements = Vec::new();
+    let dependency_name_by_key = dependency_keys
+        .iter()
+        .filter_map(|key| {
+            plan.packages
+                .iter()
+                .find(|package| package.key == *key)
+                .map(|package| (key.clone(), normalize_crate_name(&package.name)))
+        })
+        .collect::<Vec<_>>();
+
+    for (crate_name, artifact_path) in command_extern_artifacts(&unit.command) {
+        if artifact_path.is_empty() {
+            continue;
+        }
+
+        let mut candidate_names = Vec::new();
+        if !crate_name.is_empty() {
+            candidate_names.push(normalize_crate_name(&crate_name));
+        }
+        if let Some(artifact_stem) = artifact_crate_stem(&artifact_path) {
+            let normalized = normalize_crate_name(&artifact_stem);
+            if !candidate_names.iter().any(|candidate| candidate == &normalized) {
+                candidate_names.push(normalized);
+            }
+        }
+
+        if candidate_names.is_empty() {
+            continue;
+        }
+
+        let phase = dependency_phase_for_artifact(&artifact_path);
+        for (dependency_key, dependency_name) in &dependency_name_by_key {
+            if candidate_names.iter().any(|candidate| candidate == dependency_name) {
+                requirements.push((dependency_key.clone(), phase));
+            }
+        }
+    }
+
+    requirements
+}
+
+fn stronger_phase(current: DependencyPhase, next: DependencyPhase) -> DependencyPhase {
+    match (current, next) {
+        (DependencyPhase::Full, _) | (_, DependencyPhase::Full) => DependencyPhase::Full,
+        _ => DependencyPhase::Metadata,
+    }
+}
+
+fn is_build_script_compile_unit(unit: &Unit) -> bool {
+    (unit.target_kind == "build-script" || unit.target_kind == "custom-build")
+        && unit.compile_mode == "Build"
+}
+
+fn is_metadata_phase_unit(unit: &Unit) -> bool {
+    command_emits_metadata(&unit.command) && command_has_lib_crate_type(&unit.command)
+}
+
+fn rewrite_unit_for_metadata_phase(unit: Unit) -> Unit {
+    if !is_metadata_phase_unit(&unit) {
+        return unit;
+    }
+
+    let mut rewritten = unit;
+    rewritten.command = rewrite_command_for_metadata_phase(rewritten.command);
+    rewritten
+}
+
+fn rewrite_command_for_metadata_phase(mut command: crate::model::CommandSpec) -> crate::model::CommandSpec {
+    let mut rewritten_args = Vec::with_capacity(command.args.len());
+    let mut args = command.args.into_iter();
+    while let Some(arg) = args.next() {
+        if arg == "--emit" {
+            rewritten_args.push(arg);
+            if let Some(value) = args.next() {
+                rewritten_args.push(metadata_emit_value(&value));
+            }
+            continue;
+        }
+
+        if let Some(value) = arg.strip_prefix("--emit=") {
+            rewritten_args.push(format!("--emit={}", metadata_emit_value(value)));
+            continue;
+        }
+
+        rewritten_args.push(arg);
+    }
+    command.args = rewritten_args;
+    command
+}
+
+fn metadata_emit_value(value: &str) -> String {
+    let mut kept = Vec::new();
+    for part in value.split(',') {
+        if part == "metadata"
+            || part == "dep-info"
+            || part.starts_with("dep-info=")
+            || part.starts_with("metadata=")
+        {
+            kept.push(part.to_string());
+        }
+    }
+    if !kept.iter().any(|part| part == "metadata") {
+        kept.push("metadata".to_string());
+    }
+    kept.join(",")
+}
+
+fn command_emits_metadata(command: &crate::model::CommandSpec) -> bool {
+    for arg in &command.args {
+        if let Some(value) = arg.strip_prefix("--emit=") {
+            return value.split(',').any(|part| part == "metadata");
+        }
+    }
+
+    let mut args = command.args.iter();
+    while let Some(arg) = args.next() {
+        if arg == "--emit" {
+            return args
+                .next()
+                .is_some_and(|value| value.split(',').any(|part| part == "metadata"));
+        }
+    }
+
+    false
+}
+
+fn command_has_lib_crate_type(command: &crate::model::CommandSpec) -> bool {
+    for arg in &command.args {
+        if let Some(value) = arg.strip_prefix("--crate-type=") {
+            return value == "lib";
+        }
+    }
+
+    let mut args = command.args.iter();
+    while let Some(arg) = args.next() {
+        if arg == "--crate-type" {
+            return args.next().is_some_and(|value| value == "lib");
+        }
+    }
+
+    false
+}
+
+fn command_extern_artifacts(command: &crate::model::CommandSpec) -> Vec<(String, String)> {
+    let mut artifacts = Vec::new();
+    let mut args = command.args.iter();
+    while let Some(arg) = args.next() {
+        if arg == "--extern" {
+            if let Some(spec) = args.next() {
+                if let Some((crate_name, path)) = parse_extern_spec(spec) {
+                    artifacts.push((crate_name, path));
+                }
+            }
+            continue;
+        }
+
+        if let Some(spec) = arg.strip_prefix("--extern=") {
+            if let Some((crate_name, path)) = parse_extern_spec(spec) {
+                artifacts.push((crate_name, path));
+            }
+        }
+    }
+    artifacts
+}
+
+fn parse_extern_spec(spec: &str) -> Option<(String, String)> {
+    let (crate_name, artifact_path) = spec.split_once('=')?;
+    Some((crate_name.to_string(), artifact_path.to_string()))
+}
+
+fn dependency_phase_for_artifact(artifact_path: &str) -> DependencyPhase {
+    if artifact_path.ends_with(".rmeta") {
+        DependencyPhase::Metadata
+    } else {
+        DependencyPhase::Full
+    }
+}
+
+fn artifact_crate_stem(artifact_path: &str) -> Option<String> {
+    let file_name = Path::new(artifact_path).file_name()?.to_str()?;
+    let without_ext = file_name
+        .trim_end_matches(".rmeta")
+        .trim_end_matches(".rlib")
+        .trim_end_matches(".so")
+        .trim_end_matches(".dylib")
+        .trim_end_matches(".dll")
+        .trim_end_matches(".a");
+    let without_prefix = without_ext.strip_prefix("lib").unwrap_or(without_ext);
+    let (crate_stem, hash_suffix) = without_prefix.rsplit_once('-')?;
+    if hash_suffix.chars().all(|ch| ch.is_ascii_hexdigit()) {
+        Some(crate_stem.to_string())
+    } else {
+        Some(without_prefix.to_string())
+    }
+}
+
+fn normalize_crate_name(value: &str) -> String {
+    value.replace('-', "_")
 }
 
 struct Toolchain {
@@ -257,12 +688,12 @@ struct NixpkgsTool {
 impl Toolchain {
     fn resolve() -> Result<Self> {
         Ok(Self {
-            bash: resolve_nixpkgs_tool("bash")?,
-            coreutils: resolve_nixpkgs_tool("coreutils")?,
-            cargo: resolve_nixpkgs_tool("cargo")?,
-            rustc: resolve_nixpkgs_tool("rustc")?,
-            pkg_config: resolve_nixpkgs_tool("pkg-config")?,
-            cc: resolve_nixpkgs_tool("stdenv.cc")?,
+            bash: resolve_tool("BASH", "bash")?,
+            coreutils: resolve_tool("COREUTILS", "coreutils")?,
+            cargo: resolve_tool("CARGO", "cargo")?,
+            rustc: resolve_tool("RUSTC", "rustc")?,
+            pkg_config: resolve_tool("PKG_CONFIG", "pkg-config")?,
+            cc: resolve_tool("CC", "stdenv.cc")?,
         })
     }
 
@@ -301,12 +732,33 @@ impl Toolchain {
     }
 }
 
+fn resolve_tool(env_prefix: &str, attr: &str) -> Result<NixpkgsTool> {
+    resolve_tool_from_env(env_prefix)?.map_or_else(|| resolve_nixpkgs_tool(attr), Ok)
+}
+
+fn resolve_tool_from_env(env_prefix: &str) -> Result<Option<NixpkgsTool>> {
+    let drv_key = format!("NIXCARGO_TOOL_{env_prefix}_DRV");
+    let out_key = format!("NIXCARGO_TOOL_{env_prefix}_OUT");
+    match (env::var(&drv_key).ok(), env::var(&out_key).ok()) {
+        (None, None) => Ok(None),
+        (Some(drv_path), Some(out_path)) => Ok(Some(NixpkgsTool {
+            drv_path: StorePath::new(drv_path)
+                .with_context(|| format!("invalid store path in environment variable `{drv_key}`"))?,
+            out_path: StorePath::new(out_path)
+                .with_context(|| format!("invalid store path in environment variable `{out_key}`"))?,
+        })),
+        _ => bail!(
+            "expected both `{drv_key}` and `{out_key}` to be set when overriding tool resolution"
+        ),
+    }
+}
+
 fn resolve_nixpkgs_tool(attr: &str) -> Result<NixpkgsTool> {
-    let drv_expr = format!("let pkgs = import <nixpkgs> {{}}; in pkgs.{attr}.drvPath");
-    let out_expr = format!("let pkgs = import <nixpkgs> {{}}; in pkgs.{attr}.outPath");
-    let drv_path = StorePath::new(nix_eval_raw(&drv_expr)?)
+    let drv_installable = format!("nixpkgs#{attr}.drvPath");
+    let out_installable = format!("nixpkgs#{attr}.outPath");
+    let drv_path = StorePath::new(nix_eval_installable_raw(&drv_installable)?)
         .with_context(|| format!("invalid drvPath for nixpkgs attr `{attr}`"))?;
-    let out_path = StorePath::new(nix_eval_raw(&out_expr)?)
+    let out_path = StorePath::new(nix_eval_installable_raw(&out_installable)?)
         .with_context(|| format!("invalid outPath for nixpkgs attr `{attr}`"))?;
     Ok(NixpkgsTool { drv_path, out_path })
 }
@@ -320,6 +772,23 @@ fn nix_eval_raw(expr: &str) -> Result<String> {
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         bail!("`nix eval` failed for `{expr}`: {stderr}");
+    }
+
+    Ok(String::from_utf8(output.stdout)
+        .context("failed to decode `nix eval` output")?
+        .trim()
+        .to_string())
+}
+
+fn nix_eval_installable_raw(installable: &str) -> Result<String> {
+    let output = Command::new("nix")
+        .args(["eval", "--raw", installable])
+        .output()
+        .with_context(|| format!("failed to run `nix eval` for `{installable}`"))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        bail!("`nix eval` failed for `{installable}`: {stderr}");
     }
 
     Ok(String::from_utf8(output.stdout)
@@ -794,4 +1263,157 @@ fi
     );
 
     script
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        build_package_phase_plan, command_extern_artifacts, metadata_emit_value, DependencyPhase,
+    };
+    use crate::model::{CommandEnv, CommandSpec, Plan, PlanPackage, Unit};
+
+    fn command(args: &[&str]) -> CommandSpec {
+        CommandSpec {
+            cwd: None,
+            env: Vec::<CommandEnv>::new(),
+            program: "rustc".to_string(),
+            args: args.iter().map(|value| (*value).to_string()).collect(),
+        }
+    }
+
+    fn unit(
+        package_key: &str,
+        package_name: &str,
+        target_kind: &str,
+        args: &[&str],
+        package_dependencies: &[&str],
+    ) -> Unit {
+        Unit {
+            unit_id: format!("{package_key}:{target_kind}"),
+            package_key: package_key.to_string(),
+            package_name: package_name.to_string(),
+            package_version: "0.1.0".to_string(),
+            target_name: package_name.to_string(),
+            target_kind: target_kind.to_string(),
+            compile_mode: "Build".to_string(),
+            target_triple: None,
+            build_script_binary: None,
+            package_dependencies: package_dependencies
+                .iter()
+                .map(|value| (*value).to_string())
+                .collect(),
+            command: command(args),
+        }
+    }
+
+    #[test]
+    fn metadata_emit_value_keeps_only_metadata_and_dep_info() {
+        assert_eq!(
+            metadata_emit_value("dep-info,metadata,link"),
+            "dep-info,metadata".to_string()
+        );
+    }
+
+    #[test]
+    fn command_extern_artifacts_parses_split_extern_args() {
+        let parsed = command_extern_artifacts(&command(&[
+            "--extern",
+            "corelib=@@NIXCARGO_TARGET@@/debug/deps/libcorelib-1234abcd.rmeta",
+        ]));
+        assert_eq!(
+            parsed,
+            vec![(
+                "corelib".to_string(),
+                "@@NIXCARGO_TARGET@@/debug/deps/libcorelib-1234abcd.rmeta".to_string()
+            )]
+        );
+    }
+
+    #[test]
+    fn package_phase_plan_uses_metadata_for_lib_deps_and_full_for_bin_deps() {
+        let dep_key = "dep v0.1.0 (/tmp/dep)";
+        let app_key = "app v0.1.0 (/tmp/app)";
+        let dep_package = PlanPackage {
+            key: dep_key.to_string(),
+            name: "dep".to_string(),
+            version: "0.1.0".to_string(),
+            source: "/tmp/dep".to_string(),
+            manifest_path: "/tmp/dep/Cargo.toml".to_string(),
+            cargo_home_rel_manifest_path: None,
+            lock_checksum: None,
+            workspace_member: true,
+            dependencies: Vec::new(),
+        };
+        let app_package = PlanPackage {
+            key: app_key.to_string(),
+            name: "app".to_string(),
+            version: "0.1.0".to_string(),
+            source: "/tmp/app".to_string(),
+            manifest_path: "/tmp/app/Cargo.toml".to_string(),
+            cargo_home_rel_manifest_path: None,
+            lock_checksum: None,
+            workspace_member: true,
+            dependencies: vec![dep_key.to_string()],
+        };
+        let plan = Plan {
+            workspace_root: "/tmp".to_string(),
+            manifest_path: "/tmp/Cargo.toml".to_string(),
+            cargo_home: "/tmp/ch".to_string(),
+            target_dir: "/tmp/target".to_string(),
+            target_triple: None,
+            packages: vec![dep_package.clone(), app_package.clone()],
+            units: Vec::new(),
+        };
+        let units = vec![
+            unit(
+                app_key,
+                "app",
+                "lib",
+                &[
+                    "--crate-type",
+                    "lib",
+                    "--emit=dep-info,metadata,link",
+                    "--extern",
+                    "dep=@@NIXCARGO_TARGET@@/debug/deps/libdep-1234abcd.rmeta",
+                ],
+                &[dep_key],
+            ),
+            unit(
+                app_key,
+                "app",
+                "bin",
+                &[
+                    "--crate-type",
+                    "bin",
+                    "--emit=dep-info,link",
+                    "--extern",
+                    "dep=@@NIXCARGO_TARGET@@/debug/deps/libdep-1234abcd.rlib",
+                ],
+                &[dep_key],
+            ),
+        ];
+
+        let phase_plan = build_package_phase_plan(&plan, &app_package, &units);
+
+        assert!(phase_plan.has_metadata_phase());
+        assert_eq!(phase_plan.metadata_units.len(), 1);
+        assert_eq!(
+            phase_plan.metadata_units[0].command.args,
+            vec![
+                "--crate-type".to_string(),
+                "lib".to_string(),
+                "--emit=dep-info,metadata".to_string(),
+                "--extern".to_string(),
+                "dep=@@NIXCARGO_TARGET@@/debug/deps/libdep-1234abcd.rmeta".to_string(),
+            ]
+        );
+        assert_eq!(
+            phase_plan.metadata_dependencies.get(dep_key),
+            Some(&DependencyPhase::Metadata)
+        );
+        assert_eq!(
+            phase_plan.full_dependencies.get(dep_key),
+            Some(&DependencyPhase::Full)
+        );
+    }
 }
