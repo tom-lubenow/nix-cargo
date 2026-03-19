@@ -393,7 +393,7 @@ fn build_package_phase_plan(plan: &Plan, package: &PlanPackage, units: &[Unit]) 
     let full_units = units.to_vec();
 
     let metadata_dependencies = dependency_phase_requirements(plan, package, &metadata_units);
-    let full_dependencies = dependency_phase_requirements(plan, package, &full_units);
+    let full_dependencies = full_phase_dependency_requirements(plan, package, &full_units);
 
     PackagePhasePlan {
         metadata_units,
@@ -463,6 +463,17 @@ fn dependency_phase_requirements(
         }
     }
     requirements
+}
+
+fn full_phase_dependency_requirements(
+    plan: &Plan,
+    package: &PlanPackage,
+    units: &[Unit],
+) -> BTreeMap<String, DependencyPhase> {
+    dependency_phase_requirements(plan, package, units)
+        .into_keys()
+        .map(|package_key| (package_key, DependencyPhase::Full))
+        .collect()
 }
 
 fn unit_dependency_requirements(
@@ -1407,6 +1418,67 @@ mod tests {
                 "dep=@@NIXCARGO_TARGET@@/debug/deps/libdep-1234abcd.rmeta".to_string(),
             ]
         );
+        assert_eq!(
+            phase_plan.metadata_dependencies.get(dep_key),
+            Some(&DependencyPhase::Metadata)
+        );
+        assert_eq!(
+            phase_plan.full_dependencies.get(dep_key),
+            Some(&DependencyPhase::Full)
+        );
+    }
+
+    #[test]
+    fn package_phase_plan_uses_full_dependencies_for_full_lib_replay() {
+        let dep_key = "dep v0.1.0 (/tmp/dep)";
+        let app_key = "app v0.1.0 (/tmp/app)";
+        let dep_package = PlanPackage {
+            key: dep_key.to_string(),
+            name: "dep".to_string(),
+            version: "0.1.0".to_string(),
+            source: "/tmp/dep".to_string(),
+            manifest_path: "/tmp/dep/Cargo.toml".to_string(),
+            cargo_home_rel_manifest_path: None,
+            lock_checksum: None,
+            workspace_member: true,
+            dependencies: Vec::new(),
+        };
+        let app_package = PlanPackage {
+            key: app_key.to_string(),
+            name: "app".to_string(),
+            version: "0.1.0".to_string(),
+            source: "/tmp/app".to_string(),
+            manifest_path: "/tmp/app/Cargo.toml".to_string(),
+            cargo_home_rel_manifest_path: None,
+            lock_checksum: None,
+            workspace_member: true,
+            dependencies: vec![dep_key.to_string()],
+        };
+        let plan = Plan {
+            workspace_root: "/tmp".to_string(),
+            manifest_path: "/tmp/Cargo.toml".to_string(),
+            cargo_home: "/tmp/ch".to_string(),
+            target_dir: "/tmp/target".to_string(),
+            target_triple: None,
+            packages: vec![dep_package, app_package.clone()],
+            units: Vec::new(),
+        };
+        let units = vec![unit(
+            app_key,
+            "app",
+            "lib",
+            &[
+                "--crate-type",
+                "lib",
+                "--emit=dep-info,metadata,link",
+                "--extern",
+                "dep=@@NIXCARGO_TARGET@@/debug/deps/libdep-1234abcd.rmeta",
+            ],
+            &[dep_key],
+        )];
+
+        let phase_plan = build_package_phase_plan(&plan, &app_package, &units);
+
         assert_eq!(
             phase_plan.metadata_dependencies.get(dep_key),
             Some(&DependencyPhase::Metadata)
